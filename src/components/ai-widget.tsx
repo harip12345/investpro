@@ -40,9 +40,9 @@ export function AIWidget() {
   return (
     <>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-end sm:justify-end sm:p-6 pointer-events-none">
-          <button type="button" aria-label="Tutup chat" onClick={() => setOpen(false)} className="absolute inset-0 bg-black/40 backdrop-blur-[1px] pointer-events-auto sm:bg-black/20" />
-          <div className="pointer-events-auto flex w-full flex-col border border-zinc-700 bg-zinc-900 shadow-2xl sm:max-w-sm sm:rounded-xl max-sm:rounded-t-[20px] max-sm:border-b-0" style={{ height: "min(78dvh, 560px)", maxHeight: "calc(100dvh - 12px)" }}>
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-end sm:justify-end sm:p-6">
+          <button type="button" aria-label="Tutup chat" onClick={() => setOpen(false)} className="absolute inset-0 z-0 bg-black/40 sm:bg-black/20" />
+          <div className="relative z-10 flex w-full flex-col border border-zinc-700 bg-zinc-900 shadow-2xl sm:max-w-sm sm:rounded-xl max-sm:rounded-t-[20px] max-sm:border-b-0" style={{ height: "min(78dvh, 560px)", maxHeight: "calc(100dvh - 12px)" }}>
             <div className="flex items-center justify-between border-b border-zinc-700 px-4 py-3">
               <div className="flex items-center gap-2">
                 <Bot size={20} className="text-sky-400" />
@@ -94,8 +94,9 @@ export function AIWidget() {
 
       <button
         onClick={() => setOpen(!open)}
-        className="fixed bottom-4 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-sky-600 text-white shadow-lg shadow-sky-900/30 transition hover:bg-sky-500 active:bg-sky-700 sm:bottom-6 sm:right-6"
+        className={`fixed z-50 flex h-14 w-14 items-center justify-center rounded-full bg-sky-600 text-white shadow-lg shadow-sky-900/30 transition hover:bg-sky-500 active:bg-sky-700 ${open ? "bottom-4 right-4 max-sm:hidden sm:bottom-6 sm:right-6" : "bottom-4 right-4 sm:bottom-6 sm:right-6"}`}
         style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
+        aria-label={open ? "Tutup chat" : "Buka chat"}
       >
         {open ? <X size={24} /> : <MessageCircle size={24} />}
       </button>
