@@ -277,10 +277,10 @@ export default function AnalisisPage() {
   const compareStock = useMemo(() => stocks.find((s) => s.ticker === compareTicker) ?? stocks[1] ?? stocks[0], [stocks, compareTicker]);
 
   return (
-    <div className="flex flex-col gap-5 sm:gap-8">
+    <div className="flex flex-col gap-3 sm:gap-8">
       <div>
-        <h1 className="text-xl font-bold leading-tight sm:text-2xl">Analisis Saham</h1>
-        <p className="small-muted mt-1 leading-relaxed">Fundamental real, teknikal, DCF turunan, dan proxy Bandarologi berbasis harga-volume</p>
+        <h1 className="text-base font-bold leading-tight sm:text-2xl">Analisis Saham</h1>
+        <p className="small-muted mt-1 text-[12px] leading-snug sm:text-[13px] sm:leading-relaxed">Fundamental real, teknikal, DCF turunan, dan proxy Bandarologi berbasis harga-volume</p>
       </div>
 
       <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
@@ -291,10 +291,10 @@ export default function AnalisisPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
+      <div className="grid gap-3 sm:gap-6 lg:grid-cols-3">
         {/* Selector panel: tampil pertama di mobile (order-1), kolom kanan di desktop */}
-        <div className="order-1 flex flex-col gap-3.5 sm:gap-4 lg:order-2 lg:sticky lg:top-[76px] lg:self-start">
-          <Panel className="flex flex-col gap-3 sm:gap-4">
+        <div className="order-1 flex flex-col gap-2.5 sm:gap-4 lg:order-2 lg:sticky lg:top-[76px] lg:self-start">
+          <Panel className="flex flex-col gap-2.5 sm:gap-4">
             <div>
               <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500 sm:mb-2 sm:text-[13px] sm:normal-case sm:tracking-normal">Pilih Saham Utama</label>
               <select value={selectedTicker} onChange={(e) => setSelectedTicker(e.target.value)} className="min-h-[44px] w-full rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white outline-none focus:border-sky-500 sm:rounded-md sm:text-[15px]">

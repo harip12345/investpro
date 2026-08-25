@@ -276,7 +276,7 @@ export default function ScreenerPage() {
           })}
           </div>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <FilterInput label="P/E Range" min={filters.minPE} max={filters.maxPE} onMin={(v) => setFilters((f) => ({ ...f, minPE: v }))} onMax={(v) => setFilters((f) => ({ ...f, maxPE: v }))} />
           <FilterInput label="ROE Min (%)" value={filters.minROE} onChange={(v) => setFilters((f) => ({ ...f, minROE: v }))} />
           <FilterInput label="DER Max" value={filters.maxDER} onChange={(v) => setFilters((f) => ({ ...f, maxDER: v }))} />

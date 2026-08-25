@@ -58,13 +58,13 @@ export default async function Dashboard() {
         <p className="small-muted mt-1 leading-snug text-[12px] sm:text-[13px]">Pantau pergerakan indeks dan sektor utama Indonesia</p>
       </div>
 
-      <div className="grid-auto">
+      <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-2">
         {marketSummary.map((item) => <MetricCard key={item.label} label={item.label} value={item.value} change={item.change} dataStatus={item.dataStatus} />)}
       </div>
 
-      <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
+      <div className="grid gap-3 sm:gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 flex min-w-0 flex-col gap-3 sm:gap-4">
-          <h2 className="text-[14px] font-semibold sm:text-xl">Saham Teratas</h2>
+          <h2 className="text-[13px] font-semibold sm:text-xl">Saham Teratas</h2>
           <Panel className="table-scroll-hint -mx-4 hidden overflow-hidden sm:mx-0 sm:block">
             <div className="scrollbar-hidden -mx-4 overflow-x-auto overscroll-x-contain px-4 sm:mx-0 sm:px-0">
             <table className="w-full min-w-[640px] text-sm">
@@ -141,24 +141,26 @@ export default async function Dashboard() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-4">
-          <h2 className="text-lg font-semibold sm:text-xl">Heatmap Sektor</h2>
-          <Panel className="flex flex-col gap-2.5 sm:gap-3">
+        <div className="flex flex-col gap-3 sm:gap-4">
+          <h2 className="text-[13px] font-semibold sm:text-xl">Heatmap Sektor</h2>
+          <Panel className="flex flex-col gap-1.5 sm:gap-3 p-2.5 sm:p-5">
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-1 sm:gap-2.5">
             {Object.entries(sectorHeat).map(([sector, vals]) => {
               const avgChange = vals.total / vals.count;
               return (
-                <Link key={sector} href={`/screener?sector=${encodeURIComponent(sector)}`} className="flex min-h-[44px] items-center justify-between rounded-xl border border-zinc-700 bg-zinc-800/40 px-3 py-2.5 transition hover:border-sky-500 hover:bg-zinc-800 active:bg-zinc-800 sm:rounded-md sm:py-2">
-                  <span className="text-sm font-medium text-white">{sector}</span>
-                  <span className={`shrink-0 text-sm font-semibold ${avgChange >= 0 ? "text-green-400" : "text-red-400"}`}>
+                <Link key={sector} href={`/screener?sector=${encodeURIComponent(sector)}`} className="flex min-h-[36px] items-center justify-between rounded-lg border border-zinc-700 bg-zinc-800/40 px-2.5 py-1.5 transition hover:border-sky-500 hover:bg-zinc-800 active:bg-zinc-800 sm:min-h-[44px] sm:rounded-xl sm:px-3 sm:py-2.5">
+                  <span className="truncate pr-2 text-[11px] font-medium text-white sm:text-sm">{sector}</span>
+                  <span className={`shrink-0 text-[11px] font-semibold sm:text-sm ${avgChange >= 0 ? "text-green-400" : "text-red-400"}`}>
                     {avgChange >= 0 ? "+" : ""}{avgChange.toFixed(2)}%
                   </span>
                 </Link>
               );
             })}
-            <div className="mt-1 small-muted text-xs leading-relaxed">Rata-rata perubahan per sektor</div>
+            </div>
+            <div className="mt-0.5 small-muted text-[11px] leading-relaxed sm:mt-1 sm:text-xs">Rata-rata perubahan per sektor</div>
           </Panel>
 
-          <h2 className="text-lg font-semibold sm:text-xl">Screening Cepat</h2>
+          <h2 className="text-[13px] font-semibold sm:text-xl">Screening Cepat</h2>
           <Panel className="flex flex-col gap-2 sm:gap-3">
             <QuickFilter href="/screener?preset=roe15" label="ROE &gt; 15%" stocks={stocks.filter((s) => (s.roe ?? 0) >= 15)} />
             <QuickFilter href="/screener?preset=pe12" label="P/E &lt; 12" stocks={stocks.filter((s) => s.pe > 0 && s.pe < 12)} />

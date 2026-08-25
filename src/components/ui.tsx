@@ -26,13 +26,13 @@ export function DataStatus({ status, label = "Data" }: { status: "real" | "stati
 export function MetricCard({ label, value, change, dataStatus = "static" }: { label: string; value: string; change: number; dataStatus?: "real" | "static" }) {
   const positive = change >= 0;
   return (
-    <Panel>
-      <div className="flex items-center justify-between gap-2">
-        <div className="small-muted truncate pr-2">{label}</div>
+    <Panel className="p-2.5 sm:p-5">
+      <div className="flex items-center justify-between gap-1.5">
+        <div className="truncate pr-1 text-[11px] font-medium text-zinc-400 sm:text-[13px] sm:font-normal">{label}</div>
         <DataStatus status={dataStatus} />
       </div>
-      <div className="mt-2 text-xl font-semibold sm:mt-3 sm:text-2xl truncate">{value}</div>
-      <div className={clsx("mt-1.5 text-xs font-medium sm:mt-2 sm:text-sm", positive ? "text-green-400" : "text-red-400")}>
+      <div className="mt-1 truncate text-base font-semibold sm:mt-3 sm:text-2xl">{value}</div>
+      <div className={clsx("mt-1 text-[11px] font-medium sm:mt-2 sm:text-sm", positive ? "text-green-400" : "text-red-400")}>
         {positive ? "+" : ""}
         {change}% hari ini
       </div>
