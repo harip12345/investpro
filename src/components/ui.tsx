@@ -11,7 +11,7 @@ export function SectionTitle({ title, subtitle }: { title: string; subtitle?: st
 }
 
 export function Panel({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={clsx("panel min-w-0 max-w-full p-4 sm:p-5", className)}>{children}</div>;
+  return <div className={clsx("panel min-w-0 max-w-full p-3.5 sm:p-5", className)}>{children}</div>;
 }
 
 export function DataStatus({ status, label = "Data" }: { status: "real" | "static"; label?: string }) {

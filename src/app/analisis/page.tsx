@@ -291,8 +291,41 @@ export default function AnalisisPage() {
         </div>
       </div>
 
-      <div className="grid gap-5 sm:gap-6 lg:grid-cols-3">
-        <div className="min-w-0 lg:col-span-2 flex flex-col gap-5 sm:gap-6">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
+        {/* Selector panel: tampil pertama di mobile (order-1), kolom kanan di desktop */}
+        <div className="order-1 flex flex-col gap-3.5 sm:gap-4 lg:order-2 lg:sticky lg:top-[76px] lg:self-start">
+          <Panel className="flex flex-col gap-3 sm:gap-4">
+            <div>
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500 sm:mb-2 sm:text-[13px] sm:normal-case sm:tracking-normal">Pilih Saham Utama</label>
+              <select value={selectedTicker} onChange={(e) => setSelectedTicker(e.target.value)} className="min-h-[44px] w-full rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white outline-none focus:border-sky-500 sm:rounded-md sm:text-[15px]">
+                {stocks.map((s) => <option key={s.ticker} value={s.ticker}>{s.ticker} - {s.name}</option>)}
+              </select>
+            </div>
+            {activeTab === "Duel Saham" && (
+              <div>
+                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500 sm:mb-2 sm:text-[13px] sm:normal-case sm:tracking-normal">Bandingkan Dengan</label>
+                <select value={compareTicker} onChange={(e) => setCompareTicker(e.target.value)} className="min-h-[44px] w-full rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white outline-none focus:border-sky-500 sm:rounded-md sm:text-[15px]">
+                  {stocks.map((s) => <option key={s.ticker} value={s.ticker}>{s.ticker} - {s.name}</option>)}
+                </select>
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-2 rounded-lg border border-zinc-700 bg-zinc-800/40 px-3 py-2.5 sm:block sm:rounded-md sm:p-4">
+              <div className="min-w-0">
+                <div className="hidden text-xs text-zinc-400 sm:block small-muted sm:!text-xs">Kesimpulan Cepat</div>
+                <div className="text-base font-semibold text-white sm:mt-2 sm:text-xl">{selectedStock.recommendation}</div>
+              </div>
+              <div className="shrink-0 rounded-lg bg-sky-500/15 px-2.5 py-1 text-center sm:hidden">
+                <div className="text-sm font-bold text-sky-300">{selectedStock.score}</div>
+                <div className="text-[9px] leading-none text-zinc-500">skor</div>
+              </div>
+              <p className="hidden text-xs leading-relaxed text-zinc-500 sm:mt-2 sm:block">Skor {selectedStock.score}/100 berdasarkan valuasi, profitabilitas, utang, dan dividen.</p>
+            </div>
+            <AIInsight stock={selectedStock} />
+          </Panel>
+        </div>
+
+        {/* Panel utama: order-2 di mobile (di bawah selector), kolom kiri lebar di desktop */}
+        <div className="order-2 min-w-0 flex flex-col gap-4 sm:gap-5 lg:order-1 lg:col-span-2">
           <Panel className="overflow-hidden">
             <Header stock={selectedStock} />
             <SourceStrip stock={selectedStock} />
@@ -317,31 +350,6 @@ export default function AnalisisPage() {
             {activeTab === "Teknikal" && <TechnicalChart symbol={`${selectedStock.ticker}.JK`} />}
             {activeTab === "Bandarologi" && <BandarologyView data={bandarology} />}
             {activeTab === "Duel Saham" && <CompareView left={selectedStock} right={compareStock} />}
-          </Panel>
-        </div>
-
-        <div className="flex flex-col gap-4 lg:sticky lg:top-[76px] lg:self-start">
-          <Panel className="flex flex-col gap-4">
-            <div>
-              <label className="small-muted mb-2 block text-xs font-medium sm:text-[13px]">Pilih Saham Utama</label>
-              <select value={selectedTicker} onChange={(e) => setSelectedTicker(e.target.value)} className="min-h-[44px] w-full rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white outline-none focus:border-sky-500 sm:rounded-md sm:py-2">
-                {stocks.map((s) => <option key={s.ticker} value={s.ticker}>{s.ticker} - {s.name}</option>)}
-              </select>
-            </div>
-            {activeTab === "Duel Saham" && (
-              <div>
-                <label className="small-muted mb-2 block text-xs font-medium sm:text-[13px]">Bandingkan Dengan</label>
-                <select value={compareTicker} onChange={(e) => setCompareTicker(e.target.value)} className="min-h-[44px] w-full rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white outline-none focus:border-sky-500 sm:rounded-md sm:py-2">
-                  {stocks.map((s) => <option key={s.ticker} value={s.ticker}>{s.ticker} - {s.name}</option>)}
-                </select>
-              </div>
-            )}
-            <div className="rounded-xl border border-zinc-700 bg-zinc-800/40 p-4 sm:rounded-md">
-              <div className="small-muted text-xs">Kesimpulan Cepat</div>
-              <div className="mt-1.5 text-lg font-semibold text-white sm:mt-2 sm:text-xl">{selectedStock.recommendation}</div>
-              <p className="small-muted mt-1.5 leading-relaxed sm:mt-2">Skor {selectedStock.score}/100 berdasarkan valuasi, profitabilitas, utang, dan dividen.</p>
-            </div>
-            <AIInsight stock={selectedStock} />
           </Panel>
         </div>
       </div>
@@ -487,13 +495,13 @@ function BandarologyView({ data }: { data: Bandarology | null }) {
   return (
     <div className="flex min-w-0 max-w-full flex-col gap-5">
       <div className="grid gap-4 sm:grid-cols-[180px_1fr]">
-        <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-4 text-center">
+        <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-3 sm:p-4 text-center">
           <Activity className="mx-auto text-sky-400" size={22} />
           <div className={`mt-2 text-4xl font-bold ${tone}`}>{data.score}</div>
           <div className="small-muted">Skor 0-100</div>
           <div className={`mt-2 font-semibold ${tone}`}>{data.phase}</div>
         </div>
-        <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-4">
+        <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-3 sm:p-4">
           <div className="flex items-center gap-2">
             <DataStatus status="real" />
             {data.asOf && <span className="text-xs text-zinc-500">{new Date(data.asOf).toLocaleDateString("id-ID")}</span>}
@@ -525,23 +533,23 @@ function Header({ stock }: { stock: Stock }) {
     setWatched(!watched);
   };
   return (
-    <div className="mb-5 flex flex-col gap-3 border-b border-zinc-700 pb-5 sm:mb-6 sm:gap-4 sm:pb-6 sm:flex-row sm:items-center sm:justify-between">
+    <div className="mb-4 flex flex-col gap-2.5 border-b border-zinc-700 pb-4 sm:mb-6 sm:gap-4 sm:pb-6 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <h2 className="text-xl font-bold text-white sm:text-2xl">{stock.ticker}</h2>
+          <h2 className="text-lg font-bold leading-none text-white sm:text-2xl">{stock.ticker}</h2>
           <Badge tone={stock.score >= 80 ? "positive" : stock.score >= 65 ? "neutral" : "negative"}>{stock.recommendation}</Badge>
           <span className="hidden text-xs text-zinc-500 sm:inline">{stock.sector} &middot; {stock.industry}</span>
         </div>
-        <p className="small-muted mt-1 line-clamp-2 leading-snug sm:line-clamp-none">{stock.name}</p>
-        <span className="mt-1 inline-block text-[11px] text-zinc-500 sm:hidden">{stock.sector} &middot; {stock.industry}</span>
+        <p className="small-muted mt-1 line-clamp-1 leading-snug sm:line-clamp-none">{stock.name}</p>
+        <span className="mt-0.5 inline-block text-[10.5px] text-zinc-500 sm:hidden">{stock.sector} &middot; {stock.industry}</span>
       </div>
       <div className="flex items-center justify-between gap-3 sm:justify-end">
-        <button type="button" onClick={toggleWatchlist} title={watched ? "Hapus dari watchlist" : "Tambah ke watchlist"} aria-label={watched ? "Hapus dari watchlist" : "Tambah ke watchlist"} className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition sm:h-auto sm:w-auto sm:rounded-md sm:p-2 ${watched ? "border-amber-400/50 bg-amber-400/10 text-amber-300" : "border-zinc-700 text-zinc-400 hover:text-amber-300 active:bg-zinc-800"}`}>
-          <Star size={18} fill={watched ? "currentColor" : "none"} />
+        <button type="button" onClick={toggleWatchlist} title={watched ? "Hapus dari watchlist" : "Tambah ke watchlist"} aria-label={watched ? "Hapus dari watchlist" : "Tambah ke watchlist"} className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition sm:h-auto sm:w-auto sm:rounded-md sm:p-2 ${watched ? "border-amber-400/50 bg-amber-400/10 text-amber-300" : "border-zinc-700 text-zinc-400 hover:text-amber-300 active:bg-zinc-800"}`}>
+          <Star size={17} fill={watched ? "currentColor" : "none"} />
         </button>
         <div className="text-right">
-          <div className="text-xl font-semibold leading-none sm:text-2xl">Rp {stock.price.toLocaleString("id-ID")}</div>
-          <div className={`mt-1 text-sm font-medium ${stock.change >= 0 ? "text-green-400" : "text-red-400"}`}>{stock.change >= 0 ? "+" : ""}{stock.change}%</div>
+          <div className="text-lg font-semibold leading-none sm:text-2xl">Rp {stock.price.toLocaleString("id-ID")}</div>
+          <div className={`mt-0.5 text-xs font-medium sm:mt-1 sm:text-sm ${stock.change >= 0 ? "text-green-400" : "text-red-400"}`}>{stock.change >= 0 ? "+" : ""}{stock.change}%</div>
         </div>
       </div>
     </div>
@@ -619,7 +627,7 @@ function GrowthCard({ stock }: { stock: Stock }) {
     ? `${stock.annualHistory[0].period.slice(0, 4)}–${stock.annualHistory[stock.annualHistory.length - 1].period.slice(0, 4)}`
     : null;
   return (
-    <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-4">
+    <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-3 sm:p-4">
       <h3 className="font-semibold text-white">Pertumbuhan Komposit Tahunan (CAGR)</h3>
       <p className="small-muted mt-1">
         Dihitung dari laporan tahunan yang dipublikasikan{historyRange ? ` (riwayat tersedia: ${historyRange})` : ""}. Tanda "-" berarti riwayat sumber belum menjangkau rentang tersebut.
@@ -658,7 +666,7 @@ function ConsistencyCard({ stock }: { stock: Stock }) {
     { label: "Pendapatan tumbuh", value: `${cons.revenueUpYears}/${Math.max(1, cons.totalYears - 1)} thn`, tone: "neutral" }
   ] as const;
   return (
-    <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-4">
+    <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-3 sm:p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3 className="font-semibold text-white">Konsistensi {cons.totalYears} Tahun Terakhir{yearRange}</h3>
@@ -682,7 +690,7 @@ function DataQualitySummary({ stock }: { stock: Stock }) {
   }
   const tone = quality.percentage >= 80 ? "bg-green-400" : quality.percentage >= 60 ? "bg-amber-400" : "bg-red-400";
   return (
-    <div className="rounded-xl border border-zinc-700 bg-zinc-800/30 p-4 sm:rounded-md">
+    <div className="rounded-xl border border-zinc-700 bg-zinc-800/30 p-3 sm:p-4 sm:rounded-md">
       <div className="flex flex-wrap items-start justify-between gap-3 sm:gap-4">
         <div className="flex min-w-0 items-start gap-2.5 sm:gap-3">
           <Database size={18} className="mt-0.5 shrink-0 text-sky-400 sm:size-5" />
@@ -723,7 +731,7 @@ function DataQualitySummary({ stock }: { stock: Stock }) {
 function ScoreExplanation({ stock }: { stock: Stock }) {
   const breakdown = scoreBreakdown(stock);
   return (
-    <div className="rounded-xl border border-zinc-700 bg-zinc-800/30 p-4 sm:rounded-md">
+    <div className="rounded-xl border border-zinc-700 bg-zinc-800/30 p-3 sm:p-4 sm:rounded-md">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-white sm:text-base">Mengapa Skor {breakdown.score}?</h3>
@@ -800,7 +808,7 @@ function RasioKeuangan({ stock }: { stock: Stock }) {
       <BasisChips stock={stock} />
       <div className="grid gap-6 lg:grid-cols-2">
         {rows.map((section) => (
-          <div key={section.cat} className="rounded-md border border-zinc-700 bg-zinc-800/40 p-4">
+          <div key={section.cat} className="rounded-md border border-zinc-700 bg-zinc-800/40 p-3 sm:p-4">
             <h3 className="mb-3 font-semibold text-white">{section.cat}</h3>
             <table className="w-full text-sm">
               <tbody>
@@ -825,7 +833,7 @@ function RatioHistoryTable({ history }: { history: NonNullable<Stock["ratiosHist
   const fmt = (value: number | null, digits = 1, suffix = "%") =>
     value == null ? <span className="text-zinc-500">-</span> : `${value.toFixed(digits)}${suffix}`;
   return (
-    <div className="rounded-xl border border-zinc-700 bg-zinc-800/40 p-4 sm:rounded-md">
+    <div className="rounded-xl border border-zinc-700 bg-zinc-800/40 p-3 sm:p-4 sm:rounded-md">
       <h3 className="text-sm font-semibold text-white sm:text-base">Tren Rasio {history.length} Tahun Terakhir</h3>
       <p className="small-muted mt-1 text-xs leading-relaxed">
         Laporan tahunan {history[0].period.slice(0, 4)}–{history[history.length - 1].period.slice(0, 4)} — pantau arah ROE, utang, dan margin, bukan hanya angka terakhir.
@@ -952,7 +960,7 @@ function HistoryChart({ title, data, color, valueSuffix = " B" }: { title: strin
   const populated = data.some((point) => point.value !== 0);
   if (!populated) {
     return (
-      <div className="rounded-md border border-zinc-700 bg-zinc-800/30 p-4">
+      <div className="rounded-md border border-zinc-700 bg-zinc-800/30 p-3 sm:p-4">
         <div className="text-sm font-medium text-zinc-200">{title}</div>
         <div className="flex h-36 items-center justify-center text-xs text-zinc-500">Data belum tersedia</div>
       </div>
@@ -969,7 +977,7 @@ function HistoryChart({ title, data, color, valueSuffix = " B" }: { title: strin
   }).join(" ");
   const latest = data.at(-1)?.value ?? 0;
   return (
-    <div className="min-w-0 rounded-md border border-zinc-700 bg-zinc-800/30 p-4">
+    <div className="min-w-0 rounded-md border border-zinc-700 bg-zinc-800/30 p-3 sm:p-4">
       <div className="flex items-baseline justify-between gap-3">
         <div className="text-sm font-medium text-zinc-200">{title}</div>
         <div className={`text-sm font-semibold ${latest < 0 ? "text-red-400" : "text-white"}`}>{latest.toLocaleString("id-ID")}{valueSuffix}</div>
@@ -1023,7 +1031,7 @@ function RiskView({ data }: { data: RiskData | null }) {
         <HistoryChart title="Harga 1 Tahun" data={data.priceHistory} color="#38bdf8" valueSuffix="" />
         <HistoryChart title="Drawdown" data={data.drawdownHistory} color="#f87171" valueSuffix="%" />
       </div>
-      <div className="rounded-md border border-zinc-700 bg-zinc-800/30 p-4">
+      <div className="rounded-md border border-zinc-700 bg-zinc-800/30 p-3 sm:p-4">
         <h4 className="text-sm font-semibold text-white">Metodologi</h4>
         <div className="mt-2 grid gap-2 text-xs leading-relaxed text-zinc-400 sm:grid-cols-2">
           {data.methodology && Object.values(data.methodology).map((description) => <p key={description}>{description}</p>)}
@@ -1042,7 +1050,7 @@ function DcfView({ stock }: { stock: Stock }) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-4">
+      <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-3 sm:p-4">
         <div className="flex items-center gap-2 mb-3">
           <Target size={18} className="text-sky-400" />
           <h3 className="font-semibold text-white">Proyeksi Harga (DCF)</h3>
@@ -1063,7 +1071,7 @@ function DcfView({ stock }: { stock: Stock }) {
         </div>
       </div>
 
-      <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-4">
+      <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-3 sm:p-4">
         <div className="flex items-center gap-2 mb-3">
           <Users size={18} className="text-sky-400" />
           <h3 className="font-semibold text-white">Rating Analyst</h3>
@@ -1115,7 +1123,7 @@ function IndustriView({ stock }: { stock: Stock }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-4">
+      <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-3 sm:p-4">
         <div className="flex items-center gap-2 mb-3">
           <Building2 size={18} className="text-sky-400" />
           <h3 className="font-semibold text-white">Perbandingan Industri: {stock.industry}</h3>
@@ -1161,7 +1169,7 @@ function IndustriView({ stock }: { stock: Stock }) {
         </div>
       </div>
 
-      <div className="rounded-xl border border-zinc-700 bg-zinc-800/40 p-4 sm:rounded-md">
+      <div className="rounded-xl border border-zinc-700 bg-zinc-800/40 p-3 sm:p-4 sm:rounded-md">
         <h3 className="mb-3 text-sm font-semibold text-white sm:text-base">Perbandingan Metrik</h3>
         <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-4">
           {["P/E", "P/BV", "ROE", "DER"].map((metric) => {
@@ -1205,7 +1213,7 @@ function EsgView({ stock }: { stock: Stock }) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-4">
+      <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-3 sm:p-4">
         <div className="flex items-center gap-2 mb-3">
           <Shield size={18} className="text-sky-400" />
           <h3 className="font-semibold text-white">ESG Score</h3>
@@ -1232,7 +1240,7 @@ function EsgView({ stock }: { stock: Stock }) {
         </div>
       </div>
 
-      <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-4">
+      <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-3 sm:p-4">
         <h3 className="mb-3 font-semibold text-white">Apa itu ESG?</h3>
         <p className="text-sm text-zinc-400 leading-relaxed">
           ESG (Environmental, Social, Governance) mengukur seberapa baik perusahaan mengelola risiko lingkungan,
@@ -1256,7 +1264,7 @@ function DuPontCard({ stock }: { stock: Stock }) {
     { label: "ROE Estimate", value: stock.dupont.roeEstimate, suffix: "%", max: 30 }
   ];
   return (
-    <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-4">
+    <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-3 sm:p-4">
       <h3 className="font-semibold text-white">DuPont Analysis</h3>
       <p className="small-muted mt-1">ROE = Net Margin × Asset Turnover × Equity Multiplier</p>
       <div className="mt-4 flex flex-col gap-4">
@@ -1279,7 +1287,7 @@ function DuPontCard({ stock }: { stock: Stock }) {
 function EarningsTrendChart({ stock }: { stock: Stock }) {
   const max = Math.max(...stock.earningsTrend.map((e) => e.value), 1);
   return (
-    <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-4">
+    <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-3 sm:p-4">
       <h3 className="font-semibold text-white">Tren Laba Bersih</h3>
       <p className="small-muted mt-1">Riwayat laba tahunan dalam triliun rupiah</p>
       <div className="mt-4 flex h-32 items-end gap-3">
@@ -1388,11 +1396,11 @@ function AIInsight({ stock }: { stock: Stock }) {
 
 function MetricBox({ label, value, desc, basis, tone = "neutral" }: { label: string; value: string | number; desc: string; basis?: string | null; tone?: "positive" | "negative" | "neutral" }) {
   return (
-    <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-3">
-      <div className="small-muted">{label}</div>
-      <div className={`mt-1 text-xl font-semibold ${tone === "positive" ? "text-green-400" : tone === "negative" ? "text-red-400" : "text-white"}`}>{value}</div>
-      <div className="mt-1 text-xs text-zinc-500">{desc}</div>
-      {basis && <div className="mt-1.5 inline-block rounded bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-medium text-sky-300">{basis}</div>}
+    <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 p-2.5 sm:rounded-md sm:p-3">
+      <div className="truncate text-[11px] font-medium text-zinc-400 sm:text-[13px] sm:font-normal">{label}</div>
+      <div className={`mt-0.5 truncate text-base font-semibold sm:mt-1 sm:text-xl ${tone === "positive" ? "text-green-400" : tone === "negative" ? "text-red-400" : "text-white"}`}>{value}</div>
+      <div className="mt-0.5 hidden text-xs text-zinc-500 sm:block">{desc}</div>
+      {basis && <div className="mt-1 inline-block rounded bg-sky-500/10 px-1 py-px text-[9.5px] font-medium leading-tight text-sky-300 sm:text-[10px]">{basis}</div>}
     </div>
   );
 }

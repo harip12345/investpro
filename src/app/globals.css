@@ -138,7 +138,33 @@ html[data-theme="light"] .table-scroll-hint::after {
 
 .small-muted {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (min-width: 640px) {
+  .small-muted {
+    font-size: 13px;
+  }
+}
+
+/* Compact mobile density */
+@media (max-width: 639px) {
+  .panel {
+    border-radius: 10px;
+  }
+  table {
+    font-size: 12.5px;
+  }
+  th, td {
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+  input,
+  select,
+  button {
+    font-size: 15px; /* prevents iOS zoom while staying compact */
+  }
 }
 
 html[data-theme="light"] .app-shell {

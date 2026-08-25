@@ -4,15 +4,15 @@ import { useState, useRef, useEffect } from "react";
 import { Bot, User, Send, Loader2, Sparkles, TrendingUp, Shield, BarChart3, Info } from "lucide-react";
 
 const suggestions = [
-  { icon: TrendingUp, text: "Analisis BBCA saat ini, apakah menarik?", label: "Analisis BBCA" },
-  { icon: Shield, text: "Apa itu DCF dan bagaimana cara menghitungnya?", label: "Apa itu DCF?" },
-  { icon: BarChart3, text: "Jelaskan RSI, MACD, Bollinger Bands secara singkat", label: "Indikator Teknikal" },
-  { icon: Info, text: "Apa strategi investasi untuk pemula?", label: "Untuk Pemula" }
+  { icon: TrendingUp, text: "Analisis BBCA saat ini berdasarkan data terbaru", label: "Analisis BBCA" },
+  { icon: Shield, text: "Bandingkan BBRI vs BMRI dari sisi fundamental", label: "Bandingkan Bank" },
+  { icon: BarChart3, text: "Jelaskan DCF, ROE, dan RSI secara singkat", label: "Konsep Dasar" },
+  { icon: Info, text: "Apa strategi investasi yang cocok untuk pemula?", label: "Untuk Pemula" }
 ];
 
 export default function AiPage() {
   const [messages, setMessages] = useState<{ role: string; text: string }[]>([
-    { role: "bot", text: "Halo! Saya **InvestBot** 🤖 asisten investasi saham Indonesia.\n\nSaya bisa bantu:\n• Analisis saham (fundamental & teknikal)\n• Penjelasan konsep investasi\n• Diskusi strategi trading\n• Rasio keuangan & indikator\n\nAda yang ingin ditanyakan?" }
+    { role: "bot", text: "Halo! Saya **InvestBot** 🤖 asisten investasi saham Indonesia.\n\nSaya bisa bantu:\n• Analisis saham — sebutkan ticker, mis. \"analisis TLKM\"\n• Bandingkan dua emiten — \"bandingkan BBRI vs BMRI\"\n• Penjelasan konsep (DCF, ROE, RSI, dll)\n• Diskusi strategi & pertanyaan bebas\n\nData fundamental saya ambil langsung dari aplikasi. Ada yang ingin ditanyakan?" }
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -33,7 +33,7 @@ export default function AiPage() {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msg })
+        body: JSON.stringify({ message: msg, history: messages.slice(-8) })
       });
       const data = await res.json();
       setMessages((prev) => [...prev, { role: "bot", text: data.reply }]);

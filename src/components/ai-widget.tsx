@@ -6,7 +6,7 @@ import { MessageCircle, X, Send, Bot, User, Loader2 } from "lucide-react";
 export function AIWidget() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<{ role: string; text: string }[]>([
-    { role: "bot", text: "Halo! Saya **InvestBot**. Tanya apa pun tentang saham Indonesia!" }
+    { role: "bot", text: "Halo! Saya **InvestBot** 🤖\n\nTanya apa saja — sebutkan ticker (mis. \"analisis BBCA\" atau \"bandingkan BBRI vs BMRI\") dan saya ambilkan data fundamental terbaru dari aplikasi. Bisa juga tanya konsep seperti DCF, ROE, atau strategi investasi." }
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -27,7 +27,7 @@ export function AIWidget() {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMsg })
+        body: JSON.stringify({ message: userMsg, history: messages.slice(-8) })
       });
       const data = await res.json();
       setMessages((prev) => [...prev, { role: "bot", text: data.reply }]);
