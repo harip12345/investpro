@@ -154,16 +154,26 @@ html[data-theme="light"] .table-scroll-hint::after {
     border-radius: 10px;
   }
   table {
-    font-size: 12.5px;
+    font-size: 12px;
   }
   th, td {
-    padding-top: 6px;
-    padding-bottom: 6px;
+    padding-top: 5px;
+    padding-bottom: 5px;
   }
   input,
   select,
   button {
-    font-size: 15px; /* prevents iOS zoom while staying compact */
+    font-size: 14px; /* prevents iOS zoom while staying compact - we keep 16px on actual inputs via class */
+  }
+  h1 {
+    font-size: 17px !important;
+    line-height: 1.3 !important;
+  }
+  h2 {
+    font-size: 15px !important;
+  }
+  h3 {
+    font-size: 13.5px !important;
   }
 }
 

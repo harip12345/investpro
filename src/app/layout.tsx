@@ -26,7 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthShell>
           <div className="app-shell">
             <Navbar />
-            <main className="min-w-0 overflow-x-hidden px-4 py-5 pb-24 sm:px-6 sm:py-6 md:px-8 md:py-10">{children}</main>
+            <main className="min-w-0 overflow-x-hidden px-3 py-4 pb-24 sm:px-6 sm:py-6 md:px-8 md:py-10">{children}</main>
             <AIWidget />
           </div>
         </AuthShell>

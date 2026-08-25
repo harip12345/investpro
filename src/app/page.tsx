@@ -52,20 +52,20 @@ export default async function Dashboard() {
   }, {});
 
   return (
-    <div className="flex flex-col gap-6 sm:gap-8">
+    <div className="flex flex-col gap-4 sm:gap-8">
       <div>
-        <h1 className="text-xl font-bold leading-tight sm:text-2xl">Ringkasan Pasar</h1>
-        <p className="small-muted mt-1 leading-relaxed">Pantau pergerakan indeks dan sektor utama Indonesia</p>
+        <h1 className="text-base font-bold leading-tight sm:text-2xl">Ringkasan Pasar</h1>
+        <p className="small-muted mt-1 leading-snug text-[12px] sm:text-[13px]">Pantau pergerakan indeks dan sektor utama Indonesia</p>
       </div>
 
       <div className="grid-auto">
         {marketSummary.map((item) => <MetricCard key={item.label} label={item.label} value={item.value} change={item.change} dataStatus={item.dataStatus} />)}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 flex min-w-0 flex-col gap-4">
-          <h2 className="text-lg font-semibold sm:text-xl">Saham Teratas</h2>
-          <Panel className="table-scroll-hint -mx-4 overflow-hidden sm:mx-0">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 flex min-w-0 flex-col gap-3 sm:gap-4">
+          <h2 className="text-[14px] font-semibold sm:text-xl">Saham Teratas</h2>
+          <Panel className="table-scroll-hint -mx-4 hidden overflow-hidden sm:mx-0 sm:block">
             <div className="scrollbar-hidden -mx-4 overflow-x-auto overscroll-x-contain px-4 sm:mx-0 sm:px-0">
             <table className="w-full min-w-[640px] text-sm">
               <thead>
@@ -114,27 +114,27 @@ export default async function Dashboard() {
             </table>
             </div>
           </Panel>
-          {/* Mobile card fallback - shown only on <640px, hidden when table is visible on larger screens for quick scan */}
-          <div className="grid gap-3 sm:hidden">
+          <div className="grid gap-2 sm:hidden">
             {topStocks.slice(0, 6).map((s) => (
-              <Link key={`card-${s.ticker}`} href={`/analisis?ticker=${s.ticker}`} className="flex items-center justify-between rounded-xl border border-zinc-700 bg-zinc-800/40 p-3 active:bg-zinc-800">
+              <Link key={`card-${s.ticker}`} href={`/analisis?ticker=${s.ticker}`} className="grid grid-cols-[1fr_auto] gap-2 rounded-xl border border-zinc-700 bg-zinc-800/40 p-2.5 active:bg-zinc-800">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-white">{s.ticker}</span>
-                    <Badge tone={s.score >= 80 ? "positive" : s.score >= 60 ? "neutral" : "negative"}>{s.score}</Badge>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[13px] font-bold leading-none text-white">{s.ticker}</span>
+                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold leading-none ${s.score >= 80 ? "bg-green-500/20 text-green-300" : s.score >= 60 ? "bg-sky-500/20 text-sky-300" : "bg-zinc-700 text-zinc-300"}`}>{s.score}</span>
+                    <span className={`ml-1 text-[11px] font-medium ${s.change >= 0 ? "text-green-400" : "text-red-400"}`}>{s.change >= 0 ? "+" : ""}{s.change.toFixed(2)}%</span>
                   </div>
-                  <div className="truncate text-xs text-zinc-400">{s.name}</div>
-                  <div className="mt-1 flex items-center gap-1.5 text-xs">
-                    <span className={s.change >= 0 ? "font-medium text-green-400" : "font-medium text-red-400"}>{s.change >= 0 ? "+" : ""}{s.change}%</span>
-                    <span className="text-zinc-500">·</span>
-                    <span className="text-zinc-400">P/E {s.pe > 0 ? s.pe.toFixed(1) : "-"}</span>
+                  <div className="mt-1 truncate text-[11px] leading-none text-zinc-400">{s.name}</div>
+                  <div className="mt-1 flex items-center gap-2 text-[11px] leading-none">
+                    <span className="text-zinc-500">P/E {s.pe > 0 ? s.pe.toFixed(1) : "-"}</span>
+                    <span className="text-zinc-600">•</span>
+                    <span className={`inline-flex items-center gap-1 font-medium ${s.trend === "Bullish" ? "text-green-400" : s.trend === "Bearish" ? "text-red-400" : "text-zinc-500"}`}>
+                      {s.trend === "Bullish" ? <TrendingUp size={10} /> : s.trend === "Bearish" ? <TrendingDown size={10} /> : <Minus size={10} />}{s.trend}
+                    </span>
                   </div>
                 </div>
-                <div className="ml-3 shrink-0 text-right">
-                  <div className="text-sm font-semibold text-white">Rp {s.price.toLocaleString("id-ID")}</div>
-                  <span className={`inline-flex items-center gap-1 text-xs font-medium ${s.trend === "Bullish" ? "text-green-400" : s.trend === "Bearish" ? "text-red-400" : "text-zinc-400"}`}>
-                    {s.trend === "Bullish" ? <TrendingUp size={12} /> : s.trend === "Bearish" ? <TrendingDown size={12} /> : <Minus size={12} />}{s.trend}
-                  </span>
+                <div className="flex flex-col items-end justify-center gap-0.5 text-right">
+                  <div className="text-[13px] font-semibold leading-none text-white">Rp {s.price.toLocaleString("id-ID")}</div>
+                  <div className="text-[10px] leading-none text-zinc-500">{s.marketCap !== "-" ? `MCap ${s.marketCap}` : ""}</div>
                 </div>
               </Link>
             ))}
