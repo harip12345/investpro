@@ -30,9 +30,14 @@ export function AIWidget() {
         body: JSON.stringify({ message: userMsg, history: messages.slice(-8) })
       });
       const data = await res.json();
-      setMessages((prev) => [...prev, { role: "bot", text: data.reply }]);
-    } catch {
-      setMessages((prev) => [...prev, { role: "bot", text: "Error koneksi. Coba lagi." }]);
+      if (!res.ok || data.error) {
+        const errText = [data.error && `❌ ${data.error}`, data.details && `Detail: ${data.details}`, data.hint && `💡 ${data.hint}`].filter(Boolean).join("\n\n");
+        setMessages((prev) => [...prev, { role: "bot", text: errText || "Terjadi error yang tidak diketahui." }]);
+      } else {
+        setMessages((prev) => [...prev, { role: "bot", text: data.reply }]);
+      }
+    } catch (e) {
+      setMessages((prev) => [...prev, { role: "bot", text: `Error koneksi: ${(e as Error).message}` }]);
     }
     setLoading(false);
   };

@@ -133,34 +133,20 @@ async function callOpenAiCompatible(name: string, url: string, model: string, ap
       })
     });
     if (!res.ok) {
-      console.error(`${name} error:`, res.status);
+      const body = await res.text().catch(() => "");
+      console.error(`${name} error:`, res.status, body.slice(0, 400));
+      // Simpan detail untuk diteruskan ke client bila semua provider gagal
+      (globalThis as any).__lastAiError = `${name} ${res.status} ${body.slice(0, 300)}`;
       return null;
     }
     const data = await res.json();
     const reply = data?.choices?.[0]?.message?.content;
-    return reply ? { reply, source: name.toLowerCase() } : null;
+    return reply ? { reply, source: name.toLowerCase().split("-")[0] } : null;
   } catch (e) {
     console.error(`${name} failed:`, e);
+    (globalThis as any).__lastAiError = `${name} exception ${(e as Error).message}`;
     return null;
   }
-}
-
-function renderDataSummary(payloads: Record<string, any>[]): string {
-  const lines: string[] = [];
-  for (const d of payloads) {
-    const r = d.ratios ?? {};
-    const f = d.financials ?? {};
-    lines.push(`**${d.ticker}${d.name ? ` - ${d.name}` : ""}**`);
-    lines.push(`Data per ${d.asOf ?? "-"}${d.ttm?.available ? ` (TTM s/d ${d.ttm.periodEnd})` : ""} | Kapitalisasi Rp${d.marketCap ?? "-"}`);
-    lines.push(`- P/E ${r.pe ?? 0} | P/BV ${r.pbv ?? 0} | ROE ${r.roe ?? 0}% | DER ${r.der ?? 0} | Div yield ${r.dividendYield ?? 0}%`);
-    lines.push(`- Pendapatan Rp${f.revenue ?? 0} B | Laba Rp${f.netIncome ?? 0} B | EPS Rp${f.eps ?? 0} | FCF Rp${f.freeCashFlow ?? 0} B`);
-    if (d.dcf?.fairPrice) lines.push(`- DCF fair value Rp${d.dcf.fairPrice} (${d.dcf.upside >= 0 ? "+" : ""}${d.dcf.upside}% vs harga kini)`);
-    if (d.consistency?.totalYears >= 3) lines.push(`- Konsistensi: laba positif ${d.consistency.profitableYears}/${d.consistency.totalYears} tahun terakhir`);
-    if (Array.isArray(d.warnings) && d.warnings.length) lines.push(`- Peringatan: ${d.warnings.map((w: any) => w.title).join(", ")}`);
-    lines.push("");
-  }
-  lines.push("_Ringkasan langsung dari data aplikasi (mode offline)._");
-  return lines.join("\n");
 }
 
 export async function POST(request: Request) {
@@ -177,19 +163,17 @@ export async function POST(request: Request) {
 
     const { tickers, payloads, dataBlock } = await buildContext(message);
     const userText = `${message}${dataBlock}`;
-    const contextNote = tickers.length ? ` (${tickers.join(", ")})` : "";
 
     const providers: { name: string; fn: () => Promise<ProviderResult | null> }[] = [];
     if (process.env.GROQ_API_KEY) {
-      // Utama: Groq Llama 3.3 70B - cepat dan gratis
+      // Model Groq terbaru gratis (Llama lama sudah di-retire 16 Aug 2026)
       providers.push({
-        name: "groq",
-        fn: () => callOpenAiCompatible("groq", "https://api.groq.com/openai/v1/chat/completions", "llama-3.3-70b-versatile", process.env.GROQ_API_KEY!, userText, history)
+        name: "groq/gpt-oss-20b",
+        fn: () => callOpenAiCompatible("groq", "https://api.groq.com/openai/v1/chat/completions", "openai/gpt-oss-20b", process.env.GROQ_API_KEY!, userText, history)
       });
-      // Cadangan bila model utama Groq bermasalah
       providers.push({
-        name: "groq-fallback",
-        fn: () => callOpenAiCompatible("groq", "https://api.groq.com/openai/v1/chat/completions", "llama-3.1-8b-instant", process.env.GROQ_API_KEY!, userText, history)
+        name: "groq/gpt-oss-120b",
+        fn: () => callOpenAiCompatible("groq", "https://api.groq.com/openai/v1/chat/completions", "openai/gpt-oss-120b", process.env.GROQ_API_KEY!, userText, history)
       });
     }
     if (process.env.GEMINI_API_KEY) {
@@ -202,6 +186,17 @@ export async function POST(request: Request) {
       });
     }
 
+    if (providers.length === 0) {
+      return NextResponse.json(
+        {
+          error: "Tidak ada API key AI yang dikonfigurasi.",
+          details: "Setidaknya satu dari GROQ_API_KEY / GEMINI_API_KEY / OPENROUTER_API_KEY harus diisi di .env.local dan di Vercel Environment Variables.",
+          contextTickers: tickers
+        },
+        { status: 500 }
+      );
+    }
+
     for (const provider of providers) {
       const result = await provider.fn();
       if (result) {
@@ -209,15 +204,20 @@ export async function POST(request: Request) {
       }
     }
 
-    if (payloads.length) {
-      return NextResponse.json({ reply: renderDataSummary(payloads), source: "offline-data", contextTickers: tickers });
-    }
-
-    return NextResponse.json({
-      reply: `Saya InvestBot! Saat ini layanan AI sedang tidak terhubung${contextNote ? ` dan saya tidak menemukan data lengkap untuk ${contextNote.trim()}` : ""}.\n\nYang tetap bisa kamu lakukan:\n- Buka tab **Analisis** untuk metrik fundamental lengkap per emiten\n- Sebutkan ticker saham di chat (mis. "analisis BBCA") agar saya bisa rangkum datanya langsung\n\n_Catatan: ini bukan saran investasi._`,
-      source: "offline",
-      contextTickers: tickers
-    });
+    // Semua provider gagal — jangan fallback offline, tampilkan error jelas
+    const lastError = (globalThis as any).__lastAiError ?? "tidak ada detail";
+    const tried = providers.map((p) => p.name).join(", ");
+    return NextResponse.json(
+      {
+        error: "Semua provider AI gagal merespons.",
+        details: `Mencoba: ${tried}. Error terakhir: ${lastError}`,
+        hint: "Jika Groq 401 = API key salah/expired (buat baru di console.groq.com/keys). Jika 404 = nama model salah. Jika Gemini 404 = model di-retire. Update .env.local + Vercel env lalu redeploy.",
+        contextTickers: tickers,
+        // Sertakan ringkasan data mentah agar tetap bisa debug tanpa menyamarkan kegagalan AI
+        rawDataCount: payloads.length
+      },
+      { status: 502 }
+    );
   } catch (error) {
     console.error("AI Chat error:", error);
     return NextResponse.json({ reply: "Terjadi error. Coba refresh atau cek koneksi.", source: "error" });
