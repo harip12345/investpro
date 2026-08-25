@@ -22,7 +22,7 @@ const FUNDAMENTAL_TYPES = [
   "quarterlyCapitalExpenditure", "quarterlyStockholdersEquity",
   "quarterlyCommonStockEquity", "quarterlyTotalEquityGrossMinorityInterest",
   "quarterlyTotalDebt", "quarterlyTotalAssets", "quarterlyDilutedEPS",
-  "quarterlyBasicEPS"
+  "quarterlyBasicEPS", "quarterlyDilutedAverageShares", "quarterlyBasicAverageShares"
 ].join(",");
 
 type SeriesItem = {
@@ -178,7 +178,7 @@ function buildFinancialHistory(results: SeriesResult[], prefix: "annual" | "quar
     ...operatingCashFlow.keys(), ...debt.keys(), ...equity.keys(), ...eps.keys()
   ])].sort().slice(-limit);
 
-  return dates.map((period) => {
+    return dates.map((period) => {
     const freeCashFlow = directFcf.has(period)
       ? directFcf.get(period)!
       : (operatingCashFlow.get(period) ?? 0) + (capitalExpenditure.get(period) ?? 0);
@@ -192,6 +192,111 @@ function buildFinancialHistory(results: SeriesResult[], prefix: "annual" | "quar
       eps: round(eps.get(period) ?? 0)
     };
   });
+}
+
+function seriesEntries(results: SeriesResult[], types: string[], usdIdr: number) {
+  const merged = new Map<string, number>();
+  for (const type of types) {
+    for (const entry of items(results, type)) {
+      if (typeof entry.reportedValue?.raw !== "number") continue;
+      const existing = merged.get(entry.asOfDate);
+      if (existing === undefined || existing === 0) {
+        merged.set(entry.asOfDate, moneyValue(entry, usdIdr));
+      }
+    }
+  }
+  return [...merged.entries()]
+    .map(([date, value]) => ({ date, value }))
+    .filter((entry) => entry.value !== 0)
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function ttmAggregate(results: SeriesResult[], types: string[], usdIdr: number, quarters = 4) {
+  const entries = seriesEntries(results, types, usdIdr).slice(-quarters);
+  return {
+    value: entries.reduce((sum, entry) => sum + entry.value, 0),
+    covered: entries.length,
+    periodEnd: entries.at(-1)?.date ?? null,
+    dates: entries.map((entry) => entry.date)
+  };
+}
+
+function cagrOverYears(entries: { date: string; value: number }[], years: number): { value: number | null; from: string | null; to: string | null } {
+  const empty = { value: null, from: null, to: null };
+  if (entries.length < 2) return empty;
+  const latestEntry = entries.at(-1)!;
+  const latestYear = Number(latestEntry.date.slice(0, 4));
+  const past = entries.filter((entry) => Number(entry.date.slice(0, 4)) <= latestYear - years).at(-1);
+  if (!past || past.date === latestEntry.date) return empty;
+  const span = latestYear - Number(past.date.slice(0, 4));
+  if (span < years - 1 || past.value <= 0 || latestEntry.value <= 0) return empty;
+  return { value: round(((latestEntry.value / past.value) ** (1 / span) - 1) * 100, 1), from: past.date, to: latestEntry.date };
+}
+
+function spanOfLastTwo(entries: { date: string; value: number }[]) {
+  const populated = entries.filter((entry) => entry.value !== 0);
+  if (populated.length < 2) return { from: null, to: null };
+  return { from: populated.at(-2)!.date, to: populated.at(-1)!.date };
+}
+
+function latestDateOf(results: SeriesResult[], types: string[]) {
+  let latest: string | null = null;
+  for (const type of types) {
+    for (const item of items(results, type)) {
+      if (typeof item.reportedValue?.raw === "number" && (!latest || item.asOfDate > latest)) latest = item.asOfDate;
+    }
+  }
+  return latest;
+}
+
+function buildRatioHistory(results: SeriesResult[], usdIdr: number) {
+  const revenue = seriesEntries(results, ["annualTotalRevenue", "annualOperatingRevenue"], usdIdr);
+  const netIncome = seriesEntries(results, ["annualNetIncomeContinuousOperations", "annualNetIncomeCommonStockholders", "annualNetIncome"], usdIdr);
+  const grossProfit = seriesEntries(results, ["annualGrossProfit"], usdIdr);
+  const debt = seriesEntries(results, ["annualTotalDebt"], usdIdr);
+  const equity = seriesEntries(results, ["annualStockholdersEquity", "annualCommonStockEquity", "annualTotalEquityGrossMinorityInterest"], usdIdr);
+  const valueAt = (list: { date: string; value: number }[], date: string) =>
+    list.find((entry) => entry.date === date)?.value ?? 0;
+  const periods = [...new Set([...revenue, ...netIncome].map((entry) => entry.date))]
+    .sort()
+    .slice(-5);
+  return periods.map((period) => {
+    const previousPeriod = `${Number(period.slice(0, 4)) - 1}${period.slice(4)}`;
+    const periodRevenue = valueAt(revenue, period);
+    const previousRevenue = valueAt(revenue, previousPeriod);
+    const periodIncome = valueAt(netIncome, period);
+    const periodEquity = valueAt(equity, period);
+    const periodDebt = valueAt(debt, period);
+    const periodGross = valueAt(grossProfit, period);
+    return {
+      period,
+      year: Number(period.slice(0, 4)),
+      roe: periodEquity > 0 ? round(pct(periodIncome, periodEquity), 2) : null,
+      der: periodEquity > 0 ? round(periodDebt / periodEquity, 2) : null,
+      grossMargin: periodGross !== 0 && periodRevenue !== 0 ? round(pct(periodGross, periodRevenue), 2) : null,
+      netMargin: periodRevenue !== 0 ? round(pct(periodIncome, periodRevenue), 2) : null,
+      revenueGrowth: periodRevenue !== 0 && previousRevenue !== 0
+        ? round(((periodRevenue - previousRevenue) / Math.abs(previousRevenue)) * 100, 2)
+        : null
+    };
+  });
+}
+
+function buildConsistency(history: { revenue: number; netIncome: number; freeCashFlow: number }[]) {
+  const totalYears = history.length;
+  const profitableYears = history.filter((entry) => entry.netIncome > 0).length;
+  const fcfPositiveYears = history.filter((entry) => entry.freeCashFlow > 0).length;
+  const revenueUpYears = history.filter((entry, index) =>
+    index > 0 && history[index - 1].revenue > 0 && entry.revenue > history[index - 1].revenue
+  ).length;
+  const score = totalYears
+    ? Math.round(
+        (profitableYears / totalYears) * 40 +
+        (fcfPositiveYears / totalYears) * 35 +
+        (totalYears > 1 ? (revenueUpYears / (totalYears - 1)) * 25 : 0)
+      )
+    : 0;
+  return { totalYears, profitableYears, fcfPositiveYears, revenueUpYears, score };
 }
 
 type QualityMetric = {
@@ -266,6 +371,19 @@ function emptyResponse(member: (typeof STOCK_UNIVERSE)[number]) {
     earningsTrend: [],
     annualHistory: [],
     quarterlyHistory: [],
+    ttm: { available: false, periodEnd: null, quartersCovered: 0, quarters: [] as string[], revenue: 0, netIncome: 0, freeCashFlow: 0, eps: 0, basis: "annual" as const },
+    balanceDate: null,
+    growthBasis: { revenue: { from: null, to: null }, eps: { from: null, to: null } },
+    cagr: {
+      revenue3y: { value: null, from: null, to: null },
+      revenue5y: { value: null, from: null, to: null },
+      netIncome3y: { value: null, from: null, to: null },
+      netIncome5y: { value: null, from: null, to: null },
+      eps3y: { value: null, from: null, to: null },
+      eps5y: { value: null, from: null, to: null }
+    },
+    ratiosHistory: [],
+    consistency: { totalYears: 0, profitableYears: 0, fcfPositiveYears: 0, revenueUpYears: 0, score: 0 },
     dataQuality: { percentage: 0, available: 0, applicable: missing.length, total: missing.length, reportDate: null, source, missing },
     warnings: [{ code: "source_unavailable", severity: "warning", title: "Data fundamental belum tersedia", detail: "Aplikasi sedang menampilkan data cadangan dan tidak mengisi rasio dengan angka buatan." }]
   };
@@ -313,58 +431,98 @@ export async function GET(request: Request) {
     const annualDividend = dividends.filter((event) => (event.date ?? 0) >= cutoff).reduce((sum, event) => sum + (event.amount ?? 0), 0);
     const revenueGrowth = growthAny(series, ["annualTotalRevenue", "annualOperatingRevenue"]);
     const epsGrowth = growthAny(series, ["annualDilutedEPS", "annualBasicEPS"]);
-    const roe = pct(netIncome, equity);
-    const netMargin = pct(netIncome, revenue);
-    const totalAssets = latestMoney(series, "annualTotalAssets", usdIdr) || equity + debt;
-    const dcf = estimateDCF(freeCashFlow, netIncome, eps, revenueGrowth, price);
+
+    const ttmRevenueAgg = ttmAggregate(series, ["quarterlyTotalRevenue", "quarterlyOperatingRevenue"], usdIdr);
+    const ttmIncomeAgg = ttmAggregate(series, ["quarterlyNetIncomeContinuousOperations", "quarterlyNetIncomeCommonStockholders", "quarterlyNetIncome"], usdIdr);
+    const ttmGrossAgg = ttmAggregate(series, ["quarterlyGrossProfit"], usdIdr);
+    const ttmEbitdaAgg = ttmAggregate(series, ["quarterlyEBITDA"], usdIdr);
+    const ttmEbitAgg = ttmAggregate(series, ["quarterlyEBIT", "quarterlyOperatingIncome"], usdIdr);
+    const ttmFcfAgg = ttmAggregate(series, ["quarterlyFreeCashFlow"], usdIdr);
+    const ttmOcfAgg = ttmAggregate(series, ["quarterlyOperatingCashFlow"], usdIdr);
+    const ttmCapexAgg = ttmAggregate(series, ["quarterlyCapitalExpenditure"], usdIdr);
+    const ttmEpsAgg = ttmAggregate(series, ["quarterlyDilutedEPS", "quarterlyBasicEPS"], 1);
+    const ttmFcfDerived = ttmOcfAgg.value ? ttmOcfAgg.value + ttmCapexAgg.value : 0;
+    const ttmShares = latestAny(series, ["quarterlyDilutedAverageShares", "quarterlyBasicAverageShares"]);
+    const ttmEpsFromIncome = ttmIncomeAgg.covered >= 4 && ttmShares ? ttmIncomeAgg.value / ttmShares : 0;
+    const ttmEpsValue = ttmEpsAgg.covered >= 4 && ttmEpsAgg.value !== 0 ? ttmEpsAgg.value : ttmEpsFromIncome;
+    const ttmReady =
+      ttmRevenueAgg.covered >= 4 && ttmIncomeAgg.covered >= 4 &&
+      ttmRevenueAgg.value !== 0 && ttmEpsValue !== 0 &&
+      (ttmFcfAgg.covered >= 4 || (ttmOcfAgg.covered >= 3 && ttmCapexAgg.covered >= 3));
+
+    const equityQuarterly = latestMoneyAny(series, ["quarterlyStockholdersEquity", "quarterlyCommonStockEquity", "quarterlyTotalEquityGrossMinorityInterest"], usdIdr);
+    const debtQuarterly = latestMoney(series, "quarterlyTotalDebt", usdIdr);
+
+    const effRevenue = ttmReady ? ttmRevenueAgg.value : revenue;
+    const effNetIncome = ttmReady ? ttmIncomeAgg.value : netIncome;
+    const effGrossProfit = ttmReady && ttmGrossAgg.value ? ttmGrossAgg.value : grossProfit;
+    const effEbitda = ttmReady && ttmEbitdaAgg.value ? ttmEbitdaAgg.value : ebitda;
+    const effEbit = ttmReady && ttmEbitAgg.value ? ttmEbitAgg.value : ebit;
+    const effFcf = ttmReady ? (ttmFcfAgg.value || ttmFcfDerived || freeCashFlow) : freeCashFlow;
+    const effEps = ttmReady && ttmEpsValue ? ttmEpsValue : eps;
+    const effEquity = ttmReady && equityQuarterly ? equityQuarterly : equity;
+    const effDebt = ttmReady && debtQuarterly ? debtQuarterly : debt;
+
+    const roe = pct(effNetIncome, effEquity);
+    const netMargin = pct(effNetIncome, effRevenue);
+    const totalAssets = latestMoney(series, "annualTotalAssets", usdIdr) || effEquity + effDebt;
+    const dcf = estimateDCF(effFcf, effNetIncome, effEps, revenueGrowth, price);
     const annualHistory = buildFinancialHistory(series, "annual", usdIdr, 5);
     const quarterlyHistory = buildFinancialHistory(series, "quarterly", usdIdr, 8);
-    const asOf = annualHistory.at(-1)?.period
+    const consistency = buildConsistency(annualHistory);
+    const ratiosHistory = buildRatioHistory(series, usdIdr);
+    const revenueCagrSeries = seriesEntries(series, ["annualTotalRevenue", "annualOperatingRevenue"], usdIdr);
+    const incomeCagrSeries = seriesEntries(series, ["annualNetIncomeContinuousOperations", "annualNetIncomeCommonStockholders", "annualNetIncome"], usdIdr);
+    const epsCagrSeries = seriesEntries(series, ["annualDilutedEPS", "annualBasicEPS"], 1);
+    const asOf = (ttmReady ? ttmRevenueAgg.periodEnd : null)
+      ?? annualHistory.at(-1)?.period
       ?? items(series, "annualTotalRevenue").at(-1)?.asOfDate
       ?? items(series, "annualOperatingRevenue").at(-1)?.asOfDate
       ?? null;
+    const balanceDate = (ttmReady ? latestDateOf(series, ["quarterlyStockholdersEquity", "quarterlyCommonStockEquity", "quarterlyTotalEquityGrossMinorityInterest"]) : null) ?? asOf;
     const earningsTrend = items(series, "annualNetIncomeContinuousOperations").slice(-4).map((item) => ({
       year: Number(item.asOfDate.slice(0, 4)),
       value: round(moneyValue(item, usdIdr) / 1e12, 1)
     }));
 
-    const pe = latest(series, "trailingPeRatio") || (netIncome > 0 && marketCap ? marketCap / netIncome : 0);
-    const pbv = latest(series, "trailingPbRatio") || (equity > 0 && marketCap ? marketCap / equity : 0);
+    const pe = latest(series, "trailingPeRatio") || (effNetIncome > 0 && marketCap ? marketCap / effNetIncome : 0);
+    const pbv = latest(series, "trailingPbRatio") || (effEquity > 0 && marketCap ? marketCap / effEquity : 0);
     const evEbitda = latest(series, "trailingEnterprisesValueEBITDARatio")
-      || (ebitda > 0 && marketCap ? (marketCap + debt - cash) / ebitda : 0);
+      || (effEbitda > 0 && marketCap ? (marketCap + effDebt - cash) / effEbitda : 0);
     const isFinancial = member.sector === "Financial";
     const hasRevenueHistory = annualHistory.filter((entry) => entry.revenue !== 0).length >= 2;
     const hasEpsHistory = items(series, "annualDilutedEPS").length >= 2 || items(series, "annualBasicEPS").length >= 2;
     const qualityMetrics: QualityMetric[] = [
-      { key: "pe", label: "P/E", available: pe > 0, reason: netIncome <= 0 ? "Perusahaan merugi sehingga P/E tidak bermakna." : undefined },
-      { key: "pbv", label: "P/BV", available: pbv > 0, reason: equity <= 0 ? "Ekuitas negatif atau nol sehingga P/BV tidak bermakna." : undefined },
-      { key: "roe", label: "ROE", available: equity > 0, reason: equity <= 0 ? "Ekuitas negatif atau nol sehingga ROE tidak bermakna." : undefined },
-      { key: "der", label: "DER", available: equity > 0, reason: equity <= 0 ? "Ekuitas negatif atau nol sehingga DER tidak bermakna." : undefined },
+      { key: "pe", label: "P/E", available: pe > 0, reason: effNetIncome <= 0 ? "Perusahaan merugi sehingga P/E tidak bermakna." : undefined },
+      { key: "pbv", label: "P/BV", available: pbv > 0, reason: effEquity <= 0 ? "Ekuitas negatif atau nol sehingga P/BV tidak bermakna." : undefined },
+      { key: "roe", label: "ROE", available: effEquity > 0, reason: effEquity <= 0 ? "Ekuitas negatif atau nol sehingga ROE tidak bermakna." : undefined },
+      { key: "der", label: "DER", available: effEquity > 0, reason: effEquity <= 0 ? "Ekuitas negatif atau nol sehingga DER tidak bermakna." : undefined },
       { key: "dividendYield", label: "Dividend yield", available: Boolean(chart), reason: "Riwayat dividen satu tahun tidak tersedia." },
-      { key: "revenue", label: "Pendapatan", available: revenue !== 0 },
-      { key: "netIncome", label: "Laba bersih", available: netIncome !== 0 },
-      { key: "freeCashFlow", label: "Free cash flow", available: freeCashFlow !== 0 },
-      { key: "eps", label: "EPS", available: eps !== 0 },
-      { key: "netMargin", label: "Margin bersih", available: revenue !== 0 },
+      { key: "ttm", label: "Laporan TTM 4 kuartal", available: ttmReady, reason: "Kuartal-kuartal terakhir belum lengkap; metrik memakai laporan tahunan." },
+      { key: "revenue", label: "Pendapatan", available: effRevenue !== 0 },
+      { key: "netIncome", label: "Laba bersih", available: effNetIncome !== 0 },
+      { key: "freeCashFlow", label: "Free cash flow", available: effFcf !== 0 },
+      { key: "eps", label: "EPS", available: effEps !== 0 },
+      { key: "netMargin", label: "Margin bersih", available: effRevenue !== 0 },
       { key: "revenueGrowth", label: "Pertumbuhan pendapatan", available: hasRevenueHistory, reason: "Dibutuhkan sedikitnya dua laporan tahunan." },
       { key: "epsGrowth", label: "Pertumbuhan EPS", available: hasEpsHistory, reason: "Dibutuhkan sedikitnya dua laporan EPS tahunan." },
-      { key: "grossMargin", label: "Margin kotor", available: grossProfit !== 0 && revenue !== 0, applicable: !isFinancial, reason: isFinancial ? "Tidak relevan untuk bank dan sebagian besar perusahaan jasa keuangan." : undefined },
-      { key: "ebitdaMargin", label: "Margin EBITDA", available: ebitda !== 0 && revenue !== 0, applicable: !isFinancial, reason: isFinancial ? "Tidak relevan untuk bank dan sebagian besar perusahaan jasa keuangan." : undefined },
+      { key: "grossMargin", label: "Margin kotor", available: effGrossProfit !== 0 && effRevenue !== 0, applicable: !isFinancial, reason: isFinancial ? "Tidak relevan untuk bank dan sebagian besar perusahaan jasa keuangan." : undefined },
+      { key: "ebitdaMargin", label: "Margin EBITDA", available: effEbitda !== 0 && effRevenue !== 0, applicable: !isFinancial, reason: isFinancial ? "Tidak relevan untuk bank dan sebagian besar perusahaan jasa keuangan." : undefined },
       { key: "evEbitda", label: "EV/EBITDA", available: evEbitda > 0, applicable: !isFinancial, reason: isFinancial ? "Tidak relevan untuk bank dan sebagian besar perusahaan jasa keuangan." : undefined }
     ];
     const dataQuality = buildDataQuality(qualityMetrics, asOf, "Yahoo Finance Fundamentals Timeseries");
     const warnings = [
-      ...(netIncome < 0 ? [{
+      ...(effNetIncome < 0 ? [{
         code: "net_loss", severity: "danger", title: "Perusahaan merugi",
-        detail: "Laba bersih laporan terakhir negatif. P/E dan rasio berbasis laba perlu diabaikan."
+        detail: "Laba bersih periode terkini (TTM bila tersedia) negatif. P/E dan rasio berbasis laba perlu diabaikan."
       }] : []),
-      ...(equity <= 0 ? [{
+      ...(effEquity <= 0 ? [{
         code: "negative_equity", severity: "danger", title: "Ekuitas negatif atau nol",
         detail: "P/BV, ROE, dan DER tidak bermakna ketika ekuitas tidak positif."
       }] : []),
-      ...(freeCashFlow < 0 ? [{
+      ...(effFcf < 0 ? [{
         code: "negative_fcf", severity: "warning", title: "Free cash flow negatif",
-        detail: "Arus kas operasi setelah belanja modal pada laporan terakhir bernilai negatif."
+        detail: "Arus kas operasi setelah belanja modal pada periode terkini bernilai negatif."
       }] : []),
       ...(dataQuality.percentage < 60 ? [{
         code: "low_completeness", severity: "warning", title: "Kelengkapan data rendah",
@@ -374,17 +532,17 @@ export async function GET(request: Request) {
     const unavailableMetrics = [
       ...(!pe ? ["pe"] : []),
       ...(!pbv ? ["pbv"] : []),
-      ...(!equity ? ["roe", "der"] : []),
-      ...(!grossProfit || !revenue ? ["grossMargin"] : []),
-      ...(!revenue ? ["netMargin"] : []),
-      ...(!ebitda || !revenue ? ["ebitdaMargin", "evEbitda"] : []),
-      ...(!revenue ? ["revenue", "revenueGrowth"] : []),
-      ...(!netIncome ? ["netIncome"] : []),
-      ...(!grossProfit ? ["grossProfit"] : []),
-      ...(!ebitda ? ["ebitda"] : []),
-      ...(!ebit ? ["ebit"] : []),
-      ...(!eps ? ["eps"] : []),
-      ...(!freeCashFlow ? ["freeCashFlow"] : [])
+      ...(!effEquity ? ["roe", "der"] : []),
+      ...(!effGrossProfit || !effRevenue ? ["grossMargin"] : []),
+      ...(!effRevenue ? ["netMargin"] : []),
+      ...(!effEbitda || !effRevenue ? ["ebitdaMargin", "evEbitda"] : []),
+      ...(!effRevenue ? ["revenue", "revenueGrowth"] : []),
+      ...(!effNetIncome ? ["netIncome"] : []),
+      ...(!effGrossProfit ? ["grossProfit"] : []),
+      ...(!effEbitda ? ["ebitda"] : []),
+      ...(!effEbit ? ["ebit"] : []),
+      ...(!effEps ? ["eps"] : []),
+      ...(!effFcf ? ["freeCashFlow"] : [])
     ];
 
     return NextResponse.json({
@@ -401,25 +559,51 @@ export async function GET(request: Request) {
         pe: round(pe),
         pbv: round(pbv),
         roe: round(roe),
-        der: round(equity ? debt / equity : 0),
+        der: round(effEquity ? effDebt / effEquity : 0),
         dividendYield: round(pct(annualDividend, price)),
-        grossMargin: round(pct(grossProfit, revenue)),
+        grossMargin: round(pct(effGrossProfit, effRevenue)),
         netMargin: round(netMargin),
-        ebitdaMargin: round(pct(ebitda, revenue)),
+        ebitdaMargin: round(pct(effEbitda, effRevenue)),
         evEbitda: round(evEbitda)
       },
       financials: {
-        revenue: round(revenue / 1e9),
-        netIncome: round(netIncome / 1e9),
-        grossProfit: round(grossProfit / 1e9),
-        ebitda: round(ebitda / 1e9),
-        ebit: round(ebit / 1e9),
-        freeCashFlow: round(freeCashFlow / 1e9),
-        eps: round(eps),
+        revenue: round(effRevenue / 1e9),
+        netIncome: round(effNetIncome / 1e9),
+        grossProfit: round(effGrossProfit / 1e9),
+        ebitda: round(effEbitda / 1e9),
+        ebit: round(effEbit / 1e9),
+        freeCashFlow: round(effFcf / 1e9),
+        eps: round(effEps),
         epsGrowth: round(epsGrowth),
         revenueGrowth: round(revenueGrowth),
         bookValue: round(latest(series, "trailingPbRatio") ? price / latest(series, "trailingPbRatio") : 0)
       },
+      ttm: {
+        available: ttmReady,
+        periodEnd: ttmReady ? ttmRevenueAgg.periodEnd : null,
+        quartersCovered: Math.min(ttmRevenueAgg.covered, ttmIncomeAgg.covered),
+        quarters: ttmReady ? ttmRevenueAgg.dates : [],
+        revenue: round(effRevenue / 1e9),
+        netIncome: round(effNetIncome / 1e9),
+        freeCashFlow: round(effFcf / 1e9),
+        eps: round(effEps),
+        basis: ttmReady ? ("ttm" as const) : ("annual" as const)
+      },
+      balanceDate,
+      growthBasis: {
+        revenue: spanOfLastTwo(revenueCagrSeries),
+        eps: spanOfLastTwo(epsCagrSeries)
+      },
+      cagr: {
+        revenue3y: cagrOverYears(revenueCagrSeries, 3),
+        revenue5y: cagrOverYears(revenueCagrSeries, 5),
+        netIncome3y: cagrOverYears(incomeCagrSeries, 3),
+        netIncome5y: cagrOverYears(incomeCagrSeries, 5),
+        eps3y: cagrOverYears(epsCagrSeries, 3),
+        eps5y: cagrOverYears(epsCagrSeries, 5)
+      },
+      ratiosHistory,
+      consistency,
       dcf,
       analysts: { count: 0, buy: 0, hold: 0, sell: 0, targetPrice: 0, consensus: "Tidak tersedia" },
       peers: STOCK_UNIVERSE.filter((stock) => stock.sector === member.sector && stock.ticker !== ticker).slice(0, 4).map((stock) => ({
@@ -428,8 +612,8 @@ export async function GET(request: Request) {
       esg: { total: 0, environmental: 0, social: 0, governance: 0, risk: "Tidak tersedia" },
       dupont: {
         netMargin: round(netMargin),
-        assetTurnover: round(totalAssets ? revenue / totalAssets : 0),
-        equityMultiplier: round(equity ? totalAssets / equity : 0),
+        assetTurnover: round(totalAssets ? effRevenue / totalAssets : 0),
+        equityMultiplier: round(effEquity ? totalAssets / effEquity : 0),
         roeEstimate: round(roe)
       },
       unavailableMetrics,

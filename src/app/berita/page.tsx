@@ -40,25 +40,27 @@ export default function BeritaPage() {
   const sentimentScore = Math.round(((sentimentCounts["Positive"] ?? 0) / Math.max(news.length, 1)) * 100);
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Berita & Sentimen</h1>
-          <p className="small-muted mt-1">Berita pasar dari media Indonesia, dicache 10 menit</p>
+    <div className="flex flex-col gap-6 sm:gap-8">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold leading-tight sm:text-2xl">Berita & Sentimen</h1>
+          <p className="small-muted mt-1 leading-relaxed">Berita pasar dari media Indonesia, dicache 10 menit</p>
         </div>
-        <button onClick={() => fetchNews(true)} disabled={loading} className="flex items-center gap-2 rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-50">
+        <button onClick={() => fetchNews(true)} disabled={loading} className="flex min-h-[44px] items-center justify-center gap-2 self-start rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-sky-500 active:bg-sky-700 disabled:opacity-50 sm:min-h-0 sm:self-auto sm:rounded-md sm:py-2">
           <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> {loading ? "Loading..." : "Refresh"}
         </button>
       </div>
 
-      <Panel className="flex flex-wrap items-center gap-3">
-        <span className="text-sm text-zinc-400">Filter:</span>
+      <Panel className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <span className="hidden text-sm text-zinc-400 sm:inline">Filter:</span>
+        <div className="scrollbar-hidden -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0 sm:contents">
         {(["all", "Positive", "Neutral", "Negative"] as const).map((f) => (
-          <button key={f} onClick={() => setFilter(f)} className={`rounded-md px-3 py-1 text-xs font-medium transition ${filter === f ? "bg-sky-600 text-white" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"}`}>
+          <button key={f} onClick={() => setFilter(f)} className={`shrink-0 whitespace-nowrap rounded-full px-3.5 py-2 text-xs font-medium transition sm:rounded-md sm:py-1 ${filter === f ? "bg-sky-600 text-white" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700 active:bg-zinc-700"}`}>
             {f === "all" ? "Semua" : f} ({f === "all" ? news.length : sentimentCounts[f] ?? 0})
           </button>
         ))}
-        <span className="ml-auto text-xs text-zinc-500">Source: {source}</span>
+        </div>
+        <span className="text-xs text-zinc-500 sm:ml-auto">Source: {source}</span>
       </Panel>
 
       <div className="grid gap-6 lg:grid-cols-3">

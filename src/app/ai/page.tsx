@@ -44,27 +44,27 @@ export default function AiPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5 sm:gap-6">
       <div>
         <div className="flex items-center gap-2 mb-2">
-          <Sparkles size={24} className="text-sky-400" />
-          <h1 className="text-2xl font-bold">AI InvestBot</h1>
+          <Sparkles size={22} className="shrink-0 text-sky-400 sm:size-6" />
+          <h1 className="text-xl font-bold sm:text-2xl">AI InvestBot</h1>
         </div>
-        <p className="small-muted">Diskusi investasi dengan AI · Ditenagai Google Gemini · Gratis</p>
+        <p className="small-muted leading-relaxed">Diskusi investasi dengan AI · Ditenagai Google Gemini · Gratis</p>
       </div>
 
       {messages.length === 1 && (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-2.5 sm:grid-cols-2 sm:gap-3">
           {suggestions.map((s) => (
-            <button key={s.label} onClick={() => send(s.text)} className="flex items-center gap-3 rounded-lg border border-zinc-700 bg-zinc-800/40 p-4 text-left transition hover:border-sky-500 hover:bg-zinc-800">
-              <s.icon size={20} className="text-sky-400" />
+            <button key={s.label} onClick={() => send(s.text)} className="flex min-h-[56px] items-center gap-3 rounded-xl border border-zinc-700 bg-zinc-800/40 p-3.5 text-left transition hover:border-sky-500 hover:bg-zinc-800 active:bg-zinc-800 sm:min-h-0 sm:rounded-lg sm:p-4">
+              <s.icon size={20} className="shrink-0 text-sky-400" />
               <span className="text-sm text-zinc-300">{s.label}</span>
             </button>
           ))}
         </div>
       )}
 
-      <div className="flex flex-col rounded-xl border border-zinc-700 bg-zinc-800/20" style={{ height: "500px" }}>
+      <div className="flex flex-col rounded-xl border border-zinc-700 bg-zinc-800/20" style={{ height: "min(65dvh, 560px)" }}>
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.map((msg, i) => (
             <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -89,20 +89,20 @@ export default function AiPage() {
           <div ref={bottomRef} />
         </div>
 
-        <div className="border-t border-zinc-700 p-4">
-          <div className="flex gap-3">
+        <div className="border-t border-zinc-700 p-3 sm:p-4">
+          <div className="flex gap-2 sm:gap-3">
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
               placeholder="Tanya tentang saham, rasio, strategi, atau apa pun..."
-              className="flex-1 rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-500 focus:border-sky-500"
+              className="flex-1 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-3 text-[16px] text-white outline-none placeholder:text-zinc-500 focus:border-sky-500 sm:px-4 sm:py-3 sm:text-sm"
             />
-            <button onClick={() => send()} disabled={loading || !input.trim()} className="flex items-center justify-center rounded-xl bg-sky-600 px-5 py-3 text-white hover:bg-sky-500 disabled:opacity-50"><Send size={18} /></button>
+            <button onClick={() => send()} disabled={loading || !input.trim()} className="flex h-[48px] shrink-0 items-center justify-center rounded-xl bg-sky-600 px-4 text-white hover:bg-sky-500 active:bg-sky-700 disabled:opacity-50 sm:h-auto sm:px-5 sm:py-3"><Send size={18} /></button>
           </div>
-          <div className="mt-2 flex justify-between text-[11px] text-zinc-600">
+          <div className="mt-2 flex flex-col gap-1 text-[11px] leading-relaxed text-zinc-600 sm:flex-row sm:justify-between">
             <span>Ditenagai Google Gemini (free tier) · Diskusi bebas</span>
-            <span>Disclaimer: Bukan saran investasi resmi</span>
+            <span className="hidden sm:inline">Disclaimer: Bukan saran investasi resmi</span>
           </div>
         </div>
       </div>

@@ -37,6 +37,12 @@ interface Stock {
   earningsTrend: { year: number; value: number }[];
   annualHistory: FinancialHistoryPoint[];
   quarterlyHistory: FinancialHistoryPoint[];
+  ttm?: { available: boolean; periodEnd: string | null; quartersCovered: number; quarters: string[]; revenue: number; netIncome: number; freeCashFlow: number; eps: number; basis: "ttm" | "annual" };
+  balanceDate?: string | null;
+  growthBasis?: { revenue: { from: string | null; to: string | null }; eps: { from: string | null; to: string | null } };
+  cagr?: CagrResultMap;
+  ratiosHistory?: { period: string; year: number; roe: number | null; der: number | null; grossMargin: number | null; netMargin: number | null; revenueGrowth: number | null }[];
+  consistency?: { totalYears: number; profitableYears: number; fcfPositiveYears: number; revenueUpYears: number; score: number };
   dataQuality?: {
     percentage: number; available: number; applicable: number; total: number;
     reportDate: string | null; source: string;
@@ -56,6 +62,13 @@ interface FinancialHistoryPoint {
   debt: number;
   equity: number;
   eps: number;
+}
+
+interface CagrPoint { value: number | null; from: string | null; to: string | null }
+interface CagrResultMap {
+  revenue3y: CagrPoint; revenue5y: CagrPoint;
+  netIncome3y: CagrPoint; netIncome5y: CagrPoint;
+  eps3y: CagrPoint; eps5y: CagrPoint;
 }
 
 interface Bandarology {
@@ -209,7 +222,7 @@ export default function AnalisisPage() {
         if (cancelled) return;
         setStocks((current) => current.map((stock) => {
           if (stock.ticker !== selectedTicker) return stock;
-          const score = calcScore(fundData.ratios, fundData.unavailableMetrics);
+          const score = calcScore(fundData);
           return {
             ...stock,
             ...fundData,
@@ -243,7 +256,7 @@ export default function AnalisisPage() {
         if (cancelled) return;
         setStocks((current) => current.map((stock) => {
           if (stock.ticker !== compareTicker) return stock;
-          const score = calcScore(detail.ratios, detail.unavailableMetrics);
+          const score = calcScore(detail);
           return {
             ...stock,
             ...detail,
@@ -264,29 +277,33 @@ export default function AnalisisPage() {
   const compareStock = useMemo(() => stocks.find((s) => s.ticker === compareTicker) ?? stocks[1] ?? stocks[0], [stocks, compareTicker]);
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-5 sm:gap-8">
       <div>
-        <h1 className="text-2xl font-bold">Analisis Saham</h1>
-        <p className="small-muted mt-1">Fundamental real, teknikal, DCF turunan, dan proxy Bandarologi berbasis harga-volume</p>
+        <h1 className="text-xl font-bold leading-tight sm:text-2xl">Analisis Saham</h1>
+        <p className="small-muted mt-1 leading-relaxed">Fundamental real, teknikal, DCF turunan, dan proxy Bandarologi berbasis harga-volume</p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {mainTabs.map((tab) => (
-          <button key={tab} onClick={() => { setActiveTab(tab); setSubTab("Ringkasan"); }} className={`rounded-md px-4 py-2 text-sm font-medium transition ${activeTab === tab ? "bg-sky-600 text-white" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`}>{tab}</button>
-        ))}
+      <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className="scrollbar-hidden flex gap-2 overflow-x-auto scroll-smooth pb-1 snap-x snap-mandatory sm:flex-wrap sm:overflow-visible">
+          {mainTabs.map((tab) => (
+            <button key={tab} onClick={() => { setActiveTab(tab); setSubTab("Ringkasan"); }} className={`shrink-0 snap-start rounded-xl px-4 py-2.5 text-sm font-medium transition sm:rounded-md sm:py-2 ${activeTab === tab ? "bg-sky-600 text-white shadow-sm" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 active:bg-zinc-700"}`}>{tab}</button>
+          ))}
+        </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="min-w-0 lg:col-span-2 flex flex-col gap-6">
-          <Panel>
+      <div className="grid gap-5 sm:gap-6 lg:grid-cols-3">
+        <div className="min-w-0 lg:col-span-2 flex flex-col gap-5 sm:gap-6">
+          <Panel className="overflow-hidden">
             <Header stock={selectedStock} />
             <SourceStrip stock={selectedStock} />
             {activeTab === "Fundamental" && (
               <>
-                <div className="mb-4 flex gap-2 flex-wrap">
-                  {subTabs.map((st) => (
-                    <button key={st} onClick={() => setSubTab(st)} className={`rounded px-3 py-1 text-xs font-medium transition ${subTab === st ? "bg-sky-600 text-white" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"}`}>{st}</button>
-                  ))}
+                <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
+                  <div className="scrollbar-hidden flex gap-1.5 overflow-x-auto scroll-smooth pb-1 snap-x snap-mandatory sm:flex-wrap sm:overflow-visible">
+                    {subTabs.map((st) => (
+                      <button key={st} onClick={() => setSubTab(st)} className={`shrink-0 snap-start whitespace-nowrap rounded-full px-3.5 py-2 text-xs font-medium transition sm:rounded sm:px-3 sm:py-1.5 ${subTab === st ? "bg-sky-600 text-white" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 active:bg-zinc-700"}`}>{st}</button>
+                    ))}
+                  </div>
                 </div>
                 {subTab === "Ringkasan" && <RingkasanView stock={selectedStock} />}
                 {subTab === "Rasio Keuangan" && <RasioKeuangan stock={selectedStock} />}
@@ -303,26 +320,26 @@ export default function AnalisisPage() {
           </Panel>
         </div>
 
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 lg:sticky lg:top-[76px] lg:self-start">
           <Panel className="flex flex-col gap-4">
             <div>
-              <label className="small-muted mb-2 block">Pilih Saham Utama</label>
-              <select value={selectedTicker} onChange={(e) => setSelectedTicker(e.target.value)} className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-white outline-none focus:border-sky-500">
+              <label className="small-muted mb-2 block text-xs font-medium sm:text-[13px]">Pilih Saham Utama</label>
+              <select value={selectedTicker} onChange={(e) => setSelectedTicker(e.target.value)} className="min-h-[44px] w-full rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white outline-none focus:border-sky-500 sm:rounded-md sm:py-2">
                 {stocks.map((s) => <option key={s.ticker} value={s.ticker}>{s.ticker} - {s.name}</option>)}
               </select>
             </div>
             {activeTab === "Duel Saham" && (
               <div>
-                <label className="small-muted mb-2 block">Bandingkan Dengan</label>
-                <select value={compareTicker} onChange={(e) => setCompareTicker(e.target.value)} className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-white outline-none focus:border-sky-500">
+                <label className="small-muted mb-2 block text-xs font-medium sm:text-[13px]">Bandingkan Dengan</label>
+                <select value={compareTicker} onChange={(e) => setCompareTicker(e.target.value)} className="min-h-[44px] w-full rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white outline-none focus:border-sky-500 sm:rounded-md sm:py-2">
                   {stocks.map((s) => <option key={s.ticker} value={s.ticker}>{s.ticker} - {s.name}</option>)}
                 </select>
               </div>
             )}
-            <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-4">
-              <div className="small-muted">Kesimpulan Cepat</div>
-              <div className="mt-2 text-xl font-semibold text-white">{selectedStock.recommendation}</div>
-              <p className="small-muted mt-2">Skor {selectedStock.score}/100 berdasarkan valuasi, profitabilitas, utang, dan dividen.</p>
+            <div className="rounded-xl border border-zinc-700 bg-zinc-800/40 p-4 sm:rounded-md">
+              <div className="small-muted text-xs">Kesimpulan Cepat</div>
+              <div className="mt-1.5 text-lg font-semibold text-white sm:mt-2 sm:text-xl">{selectedStock.recommendation}</div>
+              <p className="small-muted mt-1.5 leading-relaxed sm:mt-2">Skor {selectedStock.score}/100 berdasarkan valuasi, profitabilitas, utang, dan dividen.</p>
             </div>
             <AIInsight stock={selectedStock} />
           </Panel>
@@ -332,7 +349,11 @@ export default function AnalisisPage() {
   );
 }
 
-function scoreBreakdown(r: Stock["ratios"], unavailableMetrics: string[] = []) {
+type ScoreInput = Pick<Stock, "ratios" | "unavailableMetrics" | "cagr" | "consistency">;
+
+function scoreBreakdown(stock: ScoreInput) {
+  const r = stock.ratios;
+  const unavailableMetrics = stock.unavailableMetrics ?? [];
   const unavailable = new Set(unavailableMetrics);
   const items: { label: string; points: number; detail: string }[] = [];
   const add = (label: string, points: number, detail: string) => items.push({ label, points, detail });
@@ -363,25 +384,90 @@ function scoreBreakdown(r: Stock["ratios"], unavailableMetrics: string[] = []) {
   else if (r.dividendYield >= 2) add("Dividen", 4, `Yield ${r.dividendYield.toFixed(1)}% memberi kontribusi.`);
   else add("Dividen", 0, "Yield di bawah 2% atau emiten tidak membagikan dividen.");
 
+  const cagr = stock.cagr;
+  const revCagr = cagr?.revenue3y?.value ?? null;
+  const earnCagr = cagr?.eps3y?.value ?? cagr?.netIncome3y?.value ?? revCagr;
+  if (revCagr == null && earnCagr == null) {
+    add("Pertumbuhan 3 Tahun", 0, "Riwayat tahunan belum cukup untuk menghitung CAGR.");
+  } else {
+    const best = Math.max(revCagr ?? -Infinity, earnCagr ?? -Infinity);
+    if ((revCagr ?? 0) >= 10 && (earnCagr ?? 0) >= 10) {
+      add("Pertumbuhan 3 Tahun", 9, `CAGR pendapatan ${revCagr!.toFixed(1)}% dan laba/EPS ${earnCagr!.toFixed(1)}% tumbuh kuat.`);
+    } else if (best >= 5) {
+      add("Pertumbuhan 3 Tahun", 5, `CAGR terbaik ${best.toFixed(1)}% — pertumbuhan moderat.`);
+    } else if (best >= 0) {
+      add("Pertumbuhan 3 Tahun", 1, "Pertumbuhan positif namun tipis.");
+    } else {
+      add("Pertumbuhan 3 Tahun", -7, "Pendapatan/laba menyusut dalam 3 tahun terakhir.");
+    }
+  }
+
+  const cons = stock.consistency;
+  if (!cons || cons.totalYears < 3) {
+    add("Konsistensi Laba & FCF", 0, "Riwayat kurang dari 3 tahun sehingga belum dinilai.");
+  } else {
+    const rate = (cons.profitableYears + cons.fcfPositiveYears) / (cons.totalYears * 2);
+    if (rate >= 0.95) add("Konsistensi Laba & FCF", 7, `Positif pada ${cons.profitableYears}/${cons.totalYears} tahun (laba) dan ${cons.fcfPositiveYears}/${cons.totalYears} tahun (FCF).`);
+    else if (rate >= 0.75) add("Konsistensi Laba & FCF", 4, "Sebagian besar tahun mencatat laba dan FCF positif.");
+    else if (rate >= 0.5) add("Konsistensi Laba & FCF", 1, "Catatan laba/FCF campuran antar tahun.");
+    else add("Konsistensi Laba & FCF", -5, "Laba atau arus kas sering negatif sepanjang riwayat.");
+  }
+
   return {
     score: Math.max(0, Math.min(100, 50 + items.reduce((sum, item) => sum + item.points, 0))),
     items
   };
 }
 
-function calcScore(r: Stock["ratios"], unavailableMetrics: string[] = []) {
-  return scoreBreakdown(r, unavailableMetrics).score;
+function calcScore(stock: ScoreInput) {
+  return scoreBreakdown(stock).score;
+}
+
+function quarterLabel(period: string | null | undefined) {
+  if (!period) return "-";
+  const [year, month] = period.split("-");
+  if (!year || !month) return period;
+  return `Q${Math.floor((Number(month) - 1) / 3) + 1} ${year}`;
+}
+
+function shortQuarter(period: string) {
+  const [year, month] = period.split("-");
+  if (!year || !month) return period;
+  return `Q${Math.floor((Number(month) - 1) / 3) + 1}'${year.slice(2)}`;
+}
+
+function fyLabel(date: string | null | undefined) {
+  if (!date) return "-";
+  return `FY${date.slice(0, 4)}`;
+}
+
+function ttmRangeLabel(quarters: string[]) {
+  if (!quarters.length) return "-";
+  return `${shortQuarter(quarters[0])}–${shortQuarter(quarters[quarters.length - 1])}`;
+}
+
+function ttmBasisLabel(stock: Stock) {
+  if (stock.ttm?.available && stock.ttm.quarters.length) return `TTM ${ttmRangeLabel(stock.ttm.quarters)}`;
+  if (stock.asOf) return fyLabel(stock.asOf);
+  return null;
+}
+
+function growthBasisLabel(basis: { from: string | null; to: string | null } | undefined) {
+  if (!basis?.from || !basis?.to) return null;
+  return `${fyLabel(basis.from)}→${fyLabel(basis.to)}`;
 }
 
 function SourceStrip({ stock }: { stock: Stock }) {
   const status = stock.dataStatus;
   return (
-    <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md border border-zinc-700 bg-zinc-800/40 px-3 py-2">
+    <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-zinc-700 bg-zinc-800/40 px-3 py-2.5 sm:mb-5 sm:rounded-md">
       <DataStatus status={status?.price ?? "static"} label="Harga" />
       <DataStatus status={status?.fundamentals ?? "static"} label="Fundamental" />
-      <span className="text-[11px] font-medium text-sky-400">DCF hasil perhitungan</span>
-      <span className="text-[11px] font-medium text-zinc-500">Analis & ESG tidak tersedia</span>
-      {stock.asOf && <span className="ml-auto text-[11px] text-zinc-500">Laporan: {stock.asOf}</span>}
+      <span className="text-[10px] font-medium text-sky-400 sm:text-[11px]">DCF hasil perhitungan</span>
+      <span className="hidden text-[11px] font-medium text-zinc-500 sm:inline">Analis & ESG tidak tersedia</span>
+      <span className="text-[10px] font-medium text-zinc-500 sm:hidden">Analis & ESG —</span>
+      {stock.ttm?.available && stock.ttm.quarters.length > 0 && <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-400 sm:text-[11px]">TTM {ttmRangeLabel(stock.ttm.quarters)}</span>}
+      {stock.asOf && !stock.ttm?.available && <span className="ml-auto hidden text-[11px] text-zinc-500 sm:inline">Laporan: {stock.asOf}</span>}
     </div>
   );
 }
@@ -439,22 +525,23 @@ function Header({ stock }: { stock: Stock }) {
     setWatched(!watched);
   };
   return (
-    <div className="mb-6 flex flex-col gap-4 border-b border-zinc-700 pb-6 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-bold text-white">{stock.ticker}</h2>
+    <div className="mb-5 flex flex-col gap-3 border-b border-zinc-700 pb-5 sm:mb-6 sm:gap-4 sm:pb-6 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <h2 className="text-xl font-bold text-white sm:text-2xl">{stock.ticker}</h2>
           <Badge tone={stock.score >= 80 ? "positive" : stock.score >= 65 ? "neutral" : "negative"}>{stock.recommendation}</Badge>
-          <span className="text-xs text-zinc-500">{stock.sector} &middot; {stock.industry}</span>
+          <span className="hidden text-xs text-zinc-500 sm:inline">{stock.sector} &middot; {stock.industry}</span>
         </div>
-        <p className="small-muted mt-1">{stock.name}</p>
+        <p className="small-muted mt-1 line-clamp-2 leading-snug sm:line-clamp-none">{stock.name}</p>
+        <span className="mt-1 inline-block text-[11px] text-zinc-500 sm:hidden">{stock.sector} &middot; {stock.industry}</span>
       </div>
-      <div className="flex items-center gap-3">
-        <button type="button" onClick={toggleWatchlist} title={watched ? "Hapus dari watchlist" : "Tambah ke watchlist"} aria-label={watched ? "Hapus dari watchlist" : "Tambah ke watchlist"} className={`rounded-md border p-2 transition ${watched ? "border-amber-400/50 bg-amber-400/10 text-amber-300" : "border-zinc-700 text-zinc-400 hover:text-amber-300"}`}>
+      <div className="flex items-center justify-between gap-3 sm:justify-end">
+        <button type="button" onClick={toggleWatchlist} title={watched ? "Hapus dari watchlist" : "Tambah ke watchlist"} aria-label={watched ? "Hapus dari watchlist" : "Tambah ke watchlist"} className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition sm:h-auto sm:w-auto sm:rounded-md sm:p-2 ${watched ? "border-amber-400/50 bg-amber-400/10 text-amber-300" : "border-zinc-700 text-zinc-400 hover:text-amber-300 active:bg-zinc-800"}`}>
           <Star size={18} fill={watched ? "currentColor" : "none"} />
         </button>
-        <div className="text-left sm:text-right">
-          <div className="text-2xl font-semibold">Rp {stock.price.toLocaleString("id-ID")}</div>
-          <div className={stock.change >= 0 ? "text-green-400" : "text-red-400"}>{stock.change >= 0 ? "+" : ""}{stock.change}%</div>
+        <div className="text-right">
+          <div className="text-xl font-semibold leading-none sm:text-2xl">Rp {stock.price.toLocaleString("id-ID")}</div>
+          <div className={`mt-1 text-sm font-medium ${stock.change >= 0 ? "text-green-400" : "text-red-400"}`}>{stock.change >= 0 ? "+" : ""}{stock.change}%</div>
         </div>
       </div>
     </div>
@@ -465,6 +552,14 @@ function RingkasanView({ stock }: { stock: Stock }) {
   return (
     <div className="flex flex-col gap-6">
       <DataQualitySummary stock={stock} />
+      {stock.ttm?.available && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+          <Activity size={14} className="shrink-0" />
+          <span>
+            Metrik laba, arus kas, dan rasio memakai <strong className="font-semibold">TTM</strong> dari 4 laporan kuartalan: {stock.ttm.quarters.map((quarter) => shortQuarter(quarter)).join(" + ")}.
+          </span>
+        </div>
+      )}
       {(stock.warnings?.length ?? 0) > 0 && (
         <div className="grid gap-2">
           {stock.warnings?.map((warning) => (
@@ -478,19 +573,104 @@ function RingkasanView({ stock }: { stock: Stock }) {
           ))}
         </div>
       )}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <MetricBox label="P/E" value={stock.ratios.pe} desc="Price to Earnings" />
-        <MetricBox label="P/BV" value={stock.ratios.pbv} desc="Price to Book Value" />
-        <MetricBox label="ROE" value={`${stock.ratios.roe.toFixed(2)}%`} desc="Return on Equity" tone="positive" />
-        <MetricBox label="DER" value={stock.ratios.der.toFixed(2)} desc="Debt to Equity" />
-        <MetricBox label="Dividend Yield" value={`${stock.ratios.dividendYield.toFixed(2)}%`} desc="Imbal hasil" />
-        <MetricBox label="Market Cap" value={`Rp${stock.marketCap}`} desc="Kapitalisasi pasar" />
-        <MetricBox label="EPS" value={`Rp${stock.financials.eps}`} desc="Laba per saham" />
-        <MetricBox label="EPS Growth" value={`${stock.financials.epsGrowth.toFixed(2)}%`} desc="Pertumbuhan laba" tone={stock.financials.epsGrowth >= 0 ? "positive" : "negative"} />
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <MetricBox label="P/E" value={stock.ratios.pe} desc="Price to Earnings" basis={ttmBasisLabel(stock) ? "Trailing" : null} />
+        <MetricBox label="P/BV" value={stock.ratios.pbv} desc="Price to Book Value" basis={ttmBasisLabel(stock) ? "Trailing" : null} />
+        <MetricBox label="ROE" value={`${stock.ratios.roe.toFixed(2)}%`} desc="Return on Equity" basis={ttmBasisLabel(stock)} tone="positive" />
+        <MetricBox label="DER" value={stock.ratios.der.toFixed(2)} desc="Debt to Equity" basis={stock.balanceDate ? `Neraca ${quarterLabel(stock.balanceDate)}` : null} />
+        <MetricBox label="Dividend Yield" value={`${stock.ratios.dividendYield.toFixed(2)}%`} desc="Imbal hasil" basis="12 bln" />
+        <MetricBox label="Market Cap" value={`Rp${stock.marketCap}`} desc="Kapitalisasi pasar" basis="Harga kini" />
+        <MetricBox label="EPS" value={`Rp${stock.financials.eps}`} desc={stock.ttm?.available ? "Laba per saham berjalan" : "Laba per saham"} basis={ttmBasisLabel(stock)} />
+        <MetricBox label="EPS Growth" value={`${stock.financials.epsGrowth.toFixed(2)}%`} desc="Pertumbuhan laba" basis={growthBasisLabel(stock.growthBasis?.eps) ?? undefined} tone={stock.financials.epsGrowth >= 0 ? "positive" : "negative"} />
       </div>
       <ScoreExplanation stock={stock} />
+      <GrowthCard stock={stock} />
+      <ConsistencyCard stock={stock} />
       <DuPontCard stock={stock} />
       <EarningsTrendChart stock={stock} />
+    </div>
+  );
+}
+
+function GrowthCard({ stock }: { stock: Stock }) {
+  const cagr = stock.cagr;
+  const rows = [
+    { label: "Pendapatan", three: cagr?.revenue3y, five: cagr?.revenue5y },
+    { label: "Laba Bersih", three: cagr?.netIncome3y, five: cagr?.netIncome5y },
+    { label: "EPS", three: cagr?.eps3y, five: cagr?.eps5y }
+  ];
+  const cell = (point: CagrPoint | undefined) => {
+    if (!point || point.value == null) {
+      return (
+        <>
+          <div><span className="text-zinc-500">-</span></div>
+          <div className="text-[10px] text-zinc-600">rentang tidak tersedia</div>
+        </>
+      );
+    }
+    return (
+      <>
+        <div className={point.value >= 0 ? "text-green-400" : "text-red-400"}>{point.value > 0 ? "+" : ""}{point.value.toFixed(1)}%</div>
+        <div className="text-[10px] text-zinc-500">{fyLabel(point.from)}→{fyLabel(point.to)}</div>
+      </>
+    );
+  };
+  const historyRange = stock.annualHistory.length
+    ? `${stock.annualHistory[0].period.slice(0, 4)}–${stock.annualHistory[stock.annualHistory.length - 1].period.slice(0, 4)}`
+    : null;
+  return (
+    <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-4">
+      <h3 className="font-semibold text-white">Pertumbuhan Komposit Tahunan (CAGR)</h3>
+      <p className="small-muted mt-1">
+        Dihitung dari laporan tahunan yang dipublikasikan{historyRange ? ` (riwayat tersedia: ${historyRange})` : ""}. Tanda "-" berarti riwayat sumber belum menjangkau rentang tersebut.
+      </p>
+      <table className="mt-3 w-full max-w-md text-sm">
+        <thead>
+          <tr className="text-left text-xs text-zinc-500">
+            <th className="pb-2 font-medium">Metrik</th>
+            <th className="pb-2 text-right font-medium">CAGR 3 Tahun</th>
+            <th className="pb-2 text-right font-medium">CAGR 5 Tahun</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.label} className="border-t border-zinc-800">
+              <td className="py-2 align-top text-zinc-300">{row.label}</td>
+              <td className="py-2 text-right align-top font-medium">{cell(row.three)}</td>
+              <td className="py-2 text-right align-top font-medium">{cell(row.five)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ConsistencyCard({ stock }: { stock: Stock }) {
+  const cons = stock.consistency;
+  if (!cons || cons.totalYears < 3) return null;
+  const yearRange = stock.annualHistory.length >= 2
+    ? ` (${stock.annualHistory[0].period.slice(0, 4)}–${stock.annualHistory[stock.annualHistory.length - 1].period.slice(0, 4)})`
+    : "";
+  const stats = [
+    { label: "Laba positif", value: `${cons.profitableYears}/${cons.totalYears} thn`, tone: cons.profitableYears === cons.totalYears ? "positive" : "neutral" },
+    { label: "FCF positif", value: `${cons.fcfPositiveYears}/${cons.totalYears} thn`, tone: cons.fcfPositiveYears === cons.totalYears ? "positive" : "neutral" },
+    { label: "Pendapatan tumbuh", value: `${cons.revenueUpYears}/${Math.max(1, cons.totalYears - 1)} thn`, tone: "neutral" }
+  ] as const;
+  return (
+    <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className="font-semibold text-white">Konsistensi {cons.totalYears} Tahun Terakhir{yearRange}</h3>
+          <p className="small-muted mt-1">Seberapa andal laba dan arus kasnya dari tahun ke tahun, berdasarkan laporan tahunan.</p>
+        </div>
+        <Badge tone={cons.score >= 80 ? "positive" : cons.score >= 55 ? "neutral" : "negative"}>Skor konsistensi {cons.score}/100</Badge>
+      </div>
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {stats.map((stat) => (
+          <MetricBox key={stat.label} label={stat.label} value={stat.value} desc="" tone={stat.tone} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -498,21 +678,21 @@ function RingkasanView({ stock }: { stock: Stock }) {
 function DataQualitySummary({ stock }: { stock: Stock }) {
   const quality = stock.dataQuality;
   if (!quality) {
-    return <div className="rounded-md border border-zinc-700 p-4 text-sm text-zinc-400">Metadata kelengkapan sedang dimuat.</div>;
+    return <div className="rounded-xl border border-zinc-700 p-4 text-sm text-zinc-400 sm:rounded-md">Metadata kelengkapan sedang dimuat.</div>;
   }
   const tone = quality.percentage >= 80 ? "bg-green-400" : quality.percentage >= 60 ? "bg-amber-400" : "bg-red-400";
   return (
-    <div className="rounded-md border border-zinc-700 bg-zinc-800/30 p-4">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <Database size={20} className="mt-0.5 text-sky-400" />
-          <div>
-            <h3 className="font-semibold text-white">Kelengkapan Fundamental</h3>
-            <p className="mt-1 text-xs text-zinc-400">{quality.available} dari {quality.applicable} metrik relevan terisi</p>
+    <div className="rounded-xl border border-zinc-700 bg-zinc-800/30 p-4 sm:rounded-md">
+      <div className="flex flex-wrap items-start justify-between gap-3 sm:gap-4">
+        <div className="flex min-w-0 items-start gap-2.5 sm:gap-3">
+          <Database size={18} className="mt-0.5 shrink-0 text-sky-400 sm:size-5" />
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-white sm:text-base">Kelengkapan Fundamental</h3>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-400">{quality.available} dari {quality.applicable} metrik relevan terisi</p>
           </div>
         </div>
         <div className="text-right">
-          <div className="text-2xl font-bold text-white">{quality.percentage}%</div>
+          <div className="text-xl font-bold text-white sm:text-2xl">{quality.percentage}%</div>
           <div className="text-[11px] text-zinc-500">Sumber: {quality.source}</div>
         </div>
       </div>
@@ -541,15 +721,15 @@ function DataQualitySummary({ stock }: { stock: Stock }) {
 }
 
 function ScoreExplanation({ stock }: { stock: Stock }) {
-  const breakdown = scoreBreakdown(stock.ratios, stock.unavailableMetrics);
+  const breakdown = scoreBreakdown(stock);
   return (
-    <div className="rounded-md border border-zinc-700 bg-zinc-800/30 p-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h3 className="font-semibold text-white">Mengapa Skor {breakdown.score}?</h3>
-          <p className="small-muted mt-1">Titik awal 50, lalu disesuaikan oleh valuasi, profitabilitas, leverage, dan dividen.</p>
+    <div className="rounded-xl border border-zinc-700 bg-zinc-800/30 p-4 sm:rounded-md">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-white sm:text-base">Mengapa Skor {breakdown.score}?</h3>
+          <p className="small-muted mt-1 text-xs leading-relaxed sm:text-[13px]">Titik awal 50, lalu disesuaikan oleh valuasi, profitabilitas, leverage, dividen, pertumbuhan, dan konsistensi laba.</p>
         </div>
-        <BarChart3 size={20} className="shrink-0 text-sky-400" />
+        <BarChart3 size={18} className="mt-0.5 shrink-0 text-sky-400 sm:size-5" />
       </div>
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
         {breakdown.items.map((item) => (
@@ -564,6 +744,22 @@ function ScoreExplanation({ stock }: { stock: Stock }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function BasisChips({ stock }: { stock: Stock }) {
+  const chips = [ttmBasisLabel(stock) ? `Laba & arus kas: ${ttmBasisLabel(stock)}` : null,
+    stock.balanceDate ? `Neraca: ${quarterLabel(stock.balanceDate)}` : null,
+    growthBasisLabel(stock.growthBasis?.revenue) ? `Pertumbuhan YoY: ${growthBasisLabel(stock.growthBasis?.revenue)}` : null
+  ].filter(Boolean) as string[];
+  if (!chips.length) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-md border border-zinc-700 bg-zinc-800/40 px-3 py-2">
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Basis periode</span>
+      {chips.map((chip) => (
+        <span key={chip} className="rounded bg-sky-500/10 px-2 py-0.5 text-[11px] font-medium text-sky-300">{chip}</span>
+      ))}
     </div>
   );
 }
@@ -600,22 +796,72 @@ function RasioKeuangan({ stock }: { stock: Stock }) {
   ];
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      {rows.map((section) => (
-        <div key={section.cat} className="rounded-md border border-zinc-700 bg-zinc-800/40 p-4">
-          <h3 className="mb-3 font-semibold text-white">{section.cat}</h3>
-          <table className="w-full text-sm">
-            <tbody>
-              {section.items.map((item) => (
-                <tr key={item.label} className="border-b border-zinc-800 last:border-0">
-                  <td className="py-2 text-zinc-400">{item.label}</td>
-                  <td className={`py-2 text-right font-medium ${(item as any).tone === "positive" ? "text-green-400" : (item as any).tone === "negative" ? "text-red-400" : "text-white"}`}>{item.value}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    <div className="flex flex-col gap-6">
+      <BasisChips stock={stock} />
+      <div className="grid gap-6 lg:grid-cols-2">
+        {rows.map((section) => (
+          <div key={section.cat} className="rounded-md border border-zinc-700 bg-zinc-800/40 p-4">
+            <h3 className="mb-3 font-semibold text-white">{section.cat}</h3>
+            <table className="w-full text-sm">
+              <tbody>
+                {section.items.map((item) => (
+                  <tr key={item.label} className="border-b border-zinc-800 last:border-0">
+                    <td className="py-2 text-zinc-400">{item.label}</td>
+                    <td className={`py-2 text-right font-medium ${(item as any).tone === "positive" ? "text-green-400" : (item as any).tone === "negative" ? "text-red-400" : "text-white"}`}>{item.value}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
+      </div>
+      <RatioHistoryTable history={stock.ratiosHistory ?? []} />
+    </div>
+  );
+}
+
+function RatioHistoryTable({ history }: { history: NonNullable<Stock["ratiosHistory"]> }) {
+  if (!history.length) return null;
+  const fmt = (value: number | null, digits = 1, suffix = "%") =>
+    value == null ? <span className="text-zinc-500">-</span> : `${value.toFixed(digits)}${suffix}`;
+  return (
+    <div className="rounded-xl border border-zinc-700 bg-zinc-800/40 p-4 sm:rounded-md">
+      <h3 className="text-sm font-semibold text-white sm:text-base">Tren Rasio {history.length} Tahun Terakhir</h3>
+      <p className="small-muted mt-1 text-xs leading-relaxed">
+        Laporan tahunan {history[0].period.slice(0, 4)}–{history[history.length - 1].period.slice(0, 4)} — pantau arah ROE, utang, dan margin, bukan hanya angka terakhir.
+      </p>
+      <div className="table-scroll-hint -mx-4 mt-3 sm:mx-0">
+        <div className="scrollbar-hidden overflow-x-auto px-4 sm:px-0">
+      <table className="w-full min-w-[560px] text-sm">
+        <thead>
+          <tr className="border-b border-zinc-700 text-left text-xs text-zinc-500">
+            <th className="py-2 pr-3 font-medium">Tahun</th>
+            <th className="py-2 pr-3 text-right font-medium">ROE</th>
+            <th className="py-2 pr-3 text-right font-medium">DER</th>
+            <th className="py-2 pr-3 text-right font-medium">Margin Kotor</th>
+            <th className="py-2 pr-3 text-right font-medium">Margin Bersih</th>
+            <th className="py-2 text-right font-medium">Pertumbuhan Pendapatan</th>
+          </tr>
+        </thead>
+        <tbody>
+          {[...history].reverse().map((row) => (
+            <tr key={row.period} className="border-b border-zinc-800 last:border-0">
+              <td className="py-2 pr-3 font-medium text-white">{row.year}</td>
+              <td className={`py-2 pr-3 text-right ${row.roe == null ? "" : row.roe >= 15 ? "text-green-400" : row.roe < 0 ? "text-red-400" : "text-white"}`}>{fmt(row.roe)}</td>
+              <td className={`py-2 pr-3 text-right ${row.der != null && row.der > 3 ? "text-red-400" : "text-white"}`}>{fmt(row.der, 2, "x")}</td>
+              <td className="py-2 pr-3 text-right text-white">{fmt(row.grossMargin)}</td>
+              <td className={`py-2 pr-3 text-right ${row.netMargin != null && row.netMargin < 0 ? "text-red-400" : "text-white"}`}>{fmt(row.netMargin)}</td>
+              <td className="py-2 text-right">
+                {row.revenueGrowth == null
+                  ? <span className="text-zinc-500">-</span>
+                  : <span className={row.revenueGrowth >= 0 ? "text-green-400" : "text-red-400"}>{row.revenueGrowth > 0 ? "+" : ""}{row.revenueGrowth.toFixed(1)}%</span>}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
         </div>
-      ))}
+      </div>
     </div>
   );
 }
@@ -623,6 +869,13 @@ function RasioKeuangan({ stock }: { stock: Stock }) {
 function FinancialHistoryView({ stock }: { stock: Stock }) {
   const [period, setPeriod] = useState<"annual" | "quarterly">("annual");
   const history = period === "annual" ? stock.annualHistory : stock.quarterlyHistory;
+  const revenueByPeriod = new Map(history.map((entry) => [entry.period, entry.revenue]));
+  const revenueYoY = (periodKey: string) => {
+    const current = revenueByPeriod.get(periodKey) ?? 0;
+    const previous = revenueByPeriod.get(`${Number(periodKey.slice(0, 4)) - 1}${periodKey.slice(4)}`);
+    if (!current || !previous) return null;
+    return Number((((current - previous) / Math.abs(previous)) * 100).toFixed(1));
+  };
   const charts = [
     { key: "revenue" as const, label: "Pendapatan", color: "#38bdf8" },
     { key: "netIncome" as const, label: "Laba Bersih", color: "#4ade80" },
@@ -634,7 +887,7 @@ function FinancialHistoryView({ stock }: { stock: Stock }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="font-semibold text-white">Riwayat Laporan Keuangan</h3>
-          <p className="small-muted mt-1">Nilai dalam miliar rupiah; periode berasal dari laporan yang dipublikasikan sumber.</p>
+          <p className="small-muted mt-1">Nilai dalam miliar rupiah; YoY dibandingkan dengan periode setahun sebelumnya {period === "quarterly" ? "(kuartal yang sama tahun lalu)" : ""}.</p>
         </div>
         <div className="inline-flex rounded-md border border-zinc-700 bg-zinc-900 p-1">
           <button onClick={() => setPeriod("annual")} className={`rounded px-3 py-1.5 text-xs font-medium ${period === "annual" ? "bg-sky-600 text-white" : "text-zinc-400"}`}>Tahunan</button>
@@ -650,12 +903,15 @@ function FinancialHistoryView({ stock }: { stock: Stock }) {
               <HistoryChart key={chart.key} title={chart.label} data={history.map((entry) => ({ date: entry.period, value: entry[chart.key] }))} color={chart.color} />
             ))}
           </div>
-          <div className="min-w-0 max-w-full overflow-x-auto rounded-md border border-zinc-700">
-            <table className="w-full min-w-[680px] text-sm">
+          <div className="table-scroll-hint -mx-4 overflow-x-auto overscroll-x-contain px-4 sm:mx-0 sm:px-0">
+            <div className="min-w-0 max-w-full overflow-hidden rounded-xl border border-zinc-700 sm:rounded-md">
+            <div className="scrollbar-hidden overflow-x-auto">
+            <table className="w-full min-w-[760px] text-sm">
               <thead className="bg-zinc-800/60 text-zinc-400">
                 <tr>
                   <th className="px-3 py-2 text-left font-medium">Periode</th>
                   <th className="px-3 py-2 text-right font-medium">Pendapatan</th>
+                  <th className="px-3 py-2 text-right font-medium">Pendapatan YoY</th>
                   <th className="px-3 py-2 text-right font-medium">Laba</th>
                   <th className="px-3 py-2 text-right font-medium">FCF</th>
                   <th className="px-3 py-2 text-right font-medium">Utang</th>
@@ -664,19 +920,27 @@ function FinancialHistoryView({ stock }: { stock: Stock }) {
                 </tr>
               </thead>
               <tbody>
-                {[...history].reverse().map((entry) => (
-                  <tr key={entry.period} className="border-t border-zinc-800">
-                    <td className="px-3 py-2 font-medium text-white">{entry.period}</td>
-                    <td className="px-3 py-2 text-right">{entry.revenue ? entry.revenue.toLocaleString("id-ID") : "-"}</td>
-                    <td className={`px-3 py-2 text-right ${entry.netIncome < 0 ? "text-red-400" : ""}`}>{entry.netIncome ? entry.netIncome.toLocaleString("id-ID") : "-"}</td>
-                    <td className={`px-3 py-2 text-right ${entry.freeCashFlow < 0 ? "text-red-400" : ""}`}>{entry.freeCashFlow ? entry.freeCashFlow.toLocaleString("id-ID") : "-"}</td>
-                    <td className="px-3 py-2 text-right">{entry.debt ? entry.debt.toLocaleString("id-ID") : "-"}</td>
-                    <td className={`px-3 py-2 text-right ${entry.equity < 0 ? "text-red-400" : ""}`}>{entry.equity ? entry.equity.toLocaleString("id-ID") : "-"}</td>
-                    <td className="px-3 py-2 text-right">{entry.eps ? entry.eps.toLocaleString("id-ID") : "-"}</td>
-                  </tr>
-                ))}
+                {[...history].reverse().map((entry) => {
+                  const yoy = revenueYoY(entry.period);
+                  return (
+                    <tr key={entry.period} className="border-t border-zinc-800">
+                      <td className="px-3 py-2 font-medium text-white">{entry.period}</td>
+                      <td className="px-3 py-2 text-right">{entry.revenue ? entry.revenue.toLocaleString("id-ID") : "-"}</td>
+                      <td className={`px-3 py-2 text-right ${yoy == null ? "text-zinc-500" : yoy >= 0 ? "text-green-400" : "text-red-400"}`}>
+                        {yoy == null ? "-" : `${yoy > 0 ? "+" : ""}${yoy}%`}
+                      </td>
+                      <td className={`px-3 py-2 text-right ${entry.netIncome < 0 ? "text-red-400" : ""}`}>{entry.netIncome ? entry.netIncome.toLocaleString("id-ID") : "-"}</td>
+                      <td className={`px-3 py-2 text-right ${entry.freeCashFlow < 0 ? "text-red-400" : ""}`}>{entry.freeCashFlow ? entry.freeCashFlow.toLocaleString("id-ID") : "-"}</td>
+                      <td className="px-3 py-2 text-right">{entry.debt ? entry.debt.toLocaleString("id-ID") : "-"}</td>
+                      <td className={`px-3 py-2 text-right ${entry.equity < 0 ? "text-red-400" : ""}`}>{entry.equity ? entry.equity.toLocaleString("id-ID") : "-"}</td>
+                      <td className="px-3 py-2 text-right">{entry.eps ? entry.eps.toLocaleString("id-ID") : "-"}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
+            </div>
+            </div>
           </div>
         </>
       )}
@@ -787,6 +1051,7 @@ function DcfView({ stock }: { stock: Stock }) {
           <div>
             <div className="small-muted">Fair Value Estimate</div>
             <div className="mt-1 text-2xl font-bold text-white">Rp {stock.dcf.fairPrice.toLocaleString()}</div>
+            <div className="mt-1 inline-block rounded bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-medium text-sky-300">Basis FCF: {ttmBasisLabel(stock) ?? "-"}</div>
           </div>
           <div className={`text-xl font-semibold ${upside >= 0 ? "text-green-400" : "text-red-400"}`}>
             {upside >= 0 ? "+" : ""}{upside}%
@@ -859,8 +1124,9 @@ function IndustriView({ stock }: { stock: Stock }) {
           <span className="text-zinc-400">Sektor: {stock.sector}</span>
           <span className="text-zinc-400">Kapitalisasi: Rp{stock.marketCap}</span>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[400px] text-sm">
+        <div className="table-scroll-hint -mx-4 sm:mx-0">
+          <div className="scrollbar-hidden overflow-x-auto px-4 sm:px-0">
+          <table className="w-full min-w-[520px] text-sm">
             <thead>
               <tr className="border-b border-zinc-700 text-left text-zinc-400">
                 <th className="pb-3 pr-4 font-medium">Perusahaan</th>
@@ -891,12 +1157,13 @@ function IndustriView({ stock }: { stock: Stock }) {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
 
-      <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-4">
-        <h3 className="mb-3 font-semibold text-white">Perbandingan Metrik</h3>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="rounded-xl border border-zinc-700 bg-zinc-800/40 p-4 sm:rounded-md">
+        <h3 className="mb-3 text-sm font-semibold text-white sm:text-base">Perbandingan Metrik</h3>
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-4">
           {["P/E", "P/BV", "ROE", "DER"].map((metric) => {
             const val = metric === "P/E" ? stock.ratios.pe : metric === "P/BV" ? stock.ratios.pbv : metric === "ROE" ? stock.ratios.roe : stock.ratios.der;
             const key = metric === "P/E" ? "pe" : metric === "P/BV" ? "pbv" : metric === "ROE" ? "roe" : "der";
@@ -1042,7 +1309,8 @@ function CompareView({ left, right }: { left: Stock; right: Stock }) {
   ];
 
   return (
-    <div className="overflow-x-auto">
+    <div className="table-scroll-hint -mx-4 sm:mx-0">
+      <div className="scrollbar-hidden -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
       <table className="w-full min-w-[500px] text-sm">
         <thead>
           <tr className="border-b border-zinc-700 text-left text-zinc-400">
@@ -1065,6 +1333,7 @@ function CompareView({ left, right }: { left: Stock; right: Stock }) {
           })}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
@@ -1075,13 +1344,18 @@ function AIInsight({ stock }: { stock: Stock }) {
     stock.ratios.pe > 0 && stock.ratios.pe <= 15 ? "P/E relatif rendah" : null,
     stock.ratios.pbv > 0 && stock.ratios.pbv <= 2 ? "P/BV rasional" : null,
     stock.ratios.dividendYield >= 4 ? "Dividend yield menarik" : null,
-    stock.ratios.der <= 1 ? "Struktur utang sehat" : null
+    stock.ratios.der <= 1 ? "Struktur utang sehat" : null,
+    (stock.cagr?.eps3y?.value ?? stock.cagr?.revenue3y?.value) != null && Math.max(stock.cagr?.eps3y?.value ?? -Infinity, stock.cagr?.revenue3y?.value ?? -Infinity) >= 10 ? "Pertumbuhan dua digit per tahun (CAGR 3 tahun)" : null,
+    stock.consistency && stock.consistency.totalYears >= 3 && stock.consistency.profitableYears === stock.consistency.totalYears ? `Laba positif konsisten ${stock.consistency.totalYears} tahun terakhir` : null,
+    stock.ttm?.available ? "Metrik memakai TTM sehingga mencerminkan kinerja kuartal terbaru" : null
   ].filter(Boolean);
   const risks = [
     stock.ratios.pe > 25 ? "P/E tinggi, harga premium" : null,
     stock.ratios.pbv > 4 ? "P/BV tinggi, overvalued" : null,
     stock.ratios.der > 3 ? "DER tinggi, leverage besar" : null,
-    stock.ratios.roe < 10 ? "ROE rendah, efisiensi kurang" : null
+    stock.ratios.roe < 10 ? "ROE rendah, efisiensi kurang" : null,
+    stock.cagr?.revenue3y?.value != null && stock.cagr.revenue3y.value < 0 ? "Pendapatan menyusut dalam 3 tahun terakhir" : null,
+    stock.consistency && stock.consistency.totalYears >= 3 && stock.consistency.fcfPositiveYears < stock.consistency.totalYears / 2 ? "FCF sering negatif sepanjang riwayat" : null
   ].filter(Boolean);
 
   const action = stock.score >= 80
@@ -1112,12 +1386,13 @@ function AIInsight({ stock }: { stock: Stock }) {
   );
 }
 
-function MetricBox({ label, value, desc, tone = "neutral" }: { label: string; value: string | number; desc: string; tone?: "positive" | "negative" | "neutral" }) {
+function MetricBox({ label, value, desc, basis, tone = "neutral" }: { label: string; value: string | number; desc: string; basis?: string | null; tone?: "positive" | "negative" | "neutral" }) {
   return (
     <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-3">
       <div className="small-muted">{label}</div>
       <div className={`mt-1 text-xl font-semibold ${tone === "positive" ? "text-green-400" : tone === "negative" ? "text-red-400" : "text-white"}`}>{value}</div>
       <div className="mt-1 text-xs text-zinc-500">{desc}</div>
+      {basis && <div className="mt-1.5 inline-block rounded bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-medium text-sky-300">{basis}</div>}
     </div>
   );
 }

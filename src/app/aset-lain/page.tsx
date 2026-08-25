@@ -95,13 +95,13 @@ export default function AlternativeAssetsPage() {
   const bankDeposit = data?.deposits.find((deposit) => deposit.id === "lps-bank-idr");
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Investasi Lain</h1>
-          <p className="small-muted mt-1">Bandingkan logam mulia, deposito, reksa dana bursa, dan kripto dalam rupiah</p>
+    <div className="flex flex-col gap-6 sm:gap-8">
+      <div className="flex items-start justify-between gap-3 sm:gap-4">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold leading-tight sm:text-2xl">Investasi Lain</h1>
+          <p className="small-muted mt-1 leading-relaxed">Bandingkan logam mulia, deposito, reksa dana bursa, dan kripto dalam rupiah</p>
         </div>
-        <button type="button" onClick={loadData} disabled={loading} title="Perbarui data" className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-zinc-700 text-zinc-300 transition hover:bg-zinc-800 disabled:opacity-50">
+        <button type="button" onClick={loadData} disabled={loading} title="Perbarui data" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-700 text-zinc-300 transition hover:bg-zinc-800 active:bg-zinc-800 disabled:opacity-50 sm:h-10 sm:rounded-md">
           <RefreshCw size={17} className={loading ? "animate-spin" : ""} />
         </button>
       </div>
@@ -115,12 +115,14 @@ export default function AlternativeAssetsPage() {
         <SnapshotCard label="Batas Bunga LPS" value={bankDeposit ? `${bankDeposit.value.toFixed(2)}%` : "-"} detail="bank umum, per tahun" status={bankDeposit?.dataStatus} />
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className="scrollbar-hidden flex gap-2 overflow-x-auto scroll-smooth pb-1 snap-x snap-mandatory sm:flex-wrap sm:overflow-visible">
         {tabs.map(({ id, label, icon: Icon }) => (
-          <button key={id} type="button" onClick={() => setActiveTab(id)} className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition ${activeTab === id ? "bg-sky-600 text-white" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"}`}>
+          <button key={id} type="button" onClick={() => setActiveTab(id)} className={`inline-flex shrink-0 snap-start items-center gap-2 rounded-full px-3.5 py-2.5 text-sm font-medium transition sm:rounded-md sm:py-2 ${activeTab === id ? "bg-sky-600 text-white shadow-sm" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 active:bg-zinc-700"}`}>
             <Icon size={16} /> {label}
           </button>
         ))}
+        </div>
       </div>
 
       {(activeTab === "all" || activeTab === "metals") && (
@@ -148,11 +150,13 @@ export default function AlternativeAssetsPage() {
         <AssetSection title="Kripto" subtitle="Harga pasar global dalam USD yang dikonversi ke rupiah" assets={groups.crypto} />
       )}
 
-      <Panel className="overflow-x-auto">
+      <Panel className="table-scroll-hint overflow-hidden">
         <div className="mb-4">
-          <h2 className="text-lg font-semibold">Perbandingan Cepat</h2>
-          <p className="small-muted mt-1">Karakter umum untuk membantu menyaring instrumen, bukan rekomendasi personal</p>
+          <h2 className="text-base font-semibold sm:text-lg">Perbandingan Cepat</h2>
+          <p className="small-muted mt-1 leading-relaxed">Karakter umum untuk membantu menyaring instrumen, bukan rekomendasi personal</p>
         </div>
+        <div className="-mx-4 sm:mx-0">
+          <div className="scrollbar-hidden overflow-x-auto px-4 sm:px-0">
         <table className="w-full min-w-[680px] text-sm">
           <thead>
             <tr className="border-b border-zinc-700 text-left text-zinc-400">
@@ -177,9 +181,11 @@ export default function AlternativeAssetsPage() {
             ))}
           </tbody>
         </table>
+          </div>
+        </div>
       </Panel>
 
-      <p className="text-xs text-zinc-500">Pembaruan terakhir: {data?.asOf ? new Date(data.asOf).toLocaleString("id-ID") : "memuat"} · Kurs USD/IDR {data?.usdIdr ? formatIdr(data.usdIdr) : "-"}</p>
+      <p className="text-xs leading-relaxed text-zinc-500">Pembaruan terakhir: {data?.asOf ? new Date(data.asOf).toLocaleString("id-ID") : "memuat"} · Kurs USD/IDR {data?.usdIdr ? formatIdr(data.usdIdr) : "-"}</p>
     </div>
   );
 }

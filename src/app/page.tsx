@@ -52,10 +52,10 @@ export default async function Dashboard() {
   }, {});
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6 sm:gap-8">
       <div>
-        <h1 className="text-2xl font-bold">Ringkasan Pasar</h1>
-        <p className="small-muted mt-1">Pantau pergerakan indeks dan sektor utama Indonesia</p>
+        <h1 className="text-xl font-bold leading-tight sm:text-2xl">Ringkasan Pasar</h1>
+        <p className="small-muted mt-1 leading-relaxed">Pantau pergerakan indeks dan sektor utama Indonesia</p>
       </div>
 
       <div className="grid-auto">
@@ -63,9 +63,10 @@ export default async function Dashboard() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 flex flex-col gap-4">
-          <h2 className="text-xl font-semibold">Saham Teratas</h2>
-          <Panel className="overflow-x-auto">
+        <div className="lg:col-span-2 flex min-w-0 flex-col gap-4">
+          <h2 className="text-lg font-semibold sm:text-xl">Saham Teratas</h2>
+          <Panel className="table-scroll-hint -mx-4 overflow-hidden sm:mx-0">
+            <div className="scrollbar-hidden -mx-4 overflow-x-auto overscroll-x-contain px-4 sm:mx-0 sm:px-0">
             <table className="w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="border-b border-zinc-700 text-left text-zinc-400">
@@ -111,28 +112,54 @@ export default async function Dashboard() {
                 ))}
               </tbody>
             </table>
+            </div>
           </Panel>
+          {/* Mobile card fallback - shown only on <640px, hidden when table is visible on larger screens for quick scan */}
+          <div className="grid gap-3 sm:hidden">
+            {topStocks.slice(0, 6).map((s) => (
+              <Link key={`card-${s.ticker}`} href={`/analisis?ticker=${s.ticker}`} className="flex items-center justify-between rounded-xl border border-zinc-700 bg-zinc-800/40 p-3 active:bg-zinc-800">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-white">{s.ticker}</span>
+                    <Badge tone={s.score >= 80 ? "positive" : s.score >= 60 ? "neutral" : "negative"}>{s.score}</Badge>
+                  </div>
+                  <div className="truncate text-xs text-zinc-400">{s.name}</div>
+                  <div className="mt-1 flex items-center gap-1.5 text-xs">
+                    <span className={s.change >= 0 ? "font-medium text-green-400" : "font-medium text-red-400"}>{s.change >= 0 ? "+" : ""}{s.change}%</span>
+                    <span className="text-zinc-500">·</span>
+                    <span className="text-zinc-400">P/E {s.pe > 0 ? s.pe.toFixed(1) : "-"}</span>
+                  </div>
+                </div>
+                <div className="ml-3 shrink-0 text-right">
+                  <div className="text-sm font-semibold text-white">Rp {s.price.toLocaleString("id-ID")}</div>
+                  <span className={`inline-flex items-center gap-1 text-xs font-medium ${s.trend === "Bullish" ? "text-green-400" : s.trend === "Bearish" ? "text-red-400" : "text-zinc-400"}`}>
+                    {s.trend === "Bullish" ? <TrendingUp size={12} /> : s.trend === "Bearish" ? <TrendingDown size={12} /> : <Minus size={12} />}{s.trend}
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
         </div>
 
         <div className="flex flex-col gap-4">
-          <h2 className="text-xl font-semibold">Heatmap Sektor</h2>
-          <Panel className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold sm:text-xl">Heatmap Sektor</h2>
+          <Panel className="flex flex-col gap-2.5 sm:gap-3">
             {Object.entries(sectorHeat).map(([sector, vals]) => {
               const avgChange = vals.total / vals.count;
               return (
-                <Link key={sector} href={`/screener?sector=${encodeURIComponent(sector)}`} className="flex items-center justify-between rounded-md border border-zinc-700 bg-zinc-800/40 px-3 py-2 transition hover:border-sky-500 hover:bg-zinc-800">
+                <Link key={sector} href={`/screener?sector=${encodeURIComponent(sector)}`} className="flex min-h-[44px] items-center justify-between rounded-xl border border-zinc-700 bg-zinc-800/40 px-3 py-2.5 transition hover:border-sky-500 hover:bg-zinc-800 active:bg-zinc-800 sm:rounded-md sm:py-2">
                   <span className="text-sm font-medium text-white">{sector}</span>
-                  <span className={`text-sm font-semibold ${avgChange >= 0 ? "text-green-400" : "text-red-400"}`}>
+                  <span className={`shrink-0 text-sm font-semibold ${avgChange >= 0 ? "text-green-400" : "text-red-400"}`}>
                     {avgChange >= 0 ? "+" : ""}{avgChange.toFixed(2)}%
                   </span>
                 </Link>
               );
             })}
-            <div className="mt-1 small-muted">Rata-rata perubahan per sektor</div>
+            <div className="mt-1 small-muted text-xs leading-relaxed">Rata-rata perubahan per sektor</div>
           </Panel>
 
-          <h2 className="text-xl font-semibold">Screening Cepat</h2>
-          <Panel className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold sm:text-xl">Screening Cepat</h2>
+          <Panel className="flex flex-col gap-2 sm:gap-3">
             <QuickFilter href="/screener?preset=roe15" label="ROE &gt; 15%" stocks={stocks.filter((s) => (s.roe ?? 0) >= 15)} />
             <QuickFilter href="/screener?preset=pe12" label="P/E &lt; 12" stocks={stocks.filter((s) => s.pe > 0 && s.pe < 12)} />
             <QuickFilter href="/screener?preset=dividend4" label="Dividend &gt; 4%" stocks={stocks.filter((s) => (s.dividendYield ?? 0) >= 4)} />
@@ -146,7 +173,7 @@ export default async function Dashboard() {
 
 function QuickFilter({ href, label, stocks: list }: { href: string; label: string; stocks: Stock[] }) {
   return (
-    <Link href={href} className="flex items-center justify-between rounded-md border border-transparent p-2 transition hover:border-sky-500/40 hover:bg-sky-500/10">
+    <Link href={href} className="flex min-h-[44px] items-center justify-between rounded-xl border border-transparent p-2 transition hover:border-sky-500/40 hover:bg-sky-500/10 active:bg-sky-500/10 sm:rounded-md">
       <div className="flex items-center gap-2">
         <span className="text-sm text-zinc-300">{label}</span>
         <span className="rounded-full bg-zinc-700 px-2 py-0.5 text-xs text-zinc-300">{list.length}</span>

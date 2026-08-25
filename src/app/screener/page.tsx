@@ -218,13 +218,13 @@ export default function ScreenerPage() {
   };
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6 sm:gap-8">
       <div>
-        <h1 className="text-2xl font-bold">Stock Screener</h1>
-        <p className="small-muted mt-1">{stocks.length} saham unik dari KOMPAS100, SRI-KEHATI, LQ45, IDX30, dan JII, dengan filter 8 parameter fundamental</p>
-        <p className="mt-2 text-xs text-zinc-500">LQ45: {LQ45_PERIOD} · IDX30: {IDX30_PERIOD} · JII: {JII_PERIOD}</p>
-        <p className="mt-1 text-xs text-zinc-500">KOMPAS100: {KOMPAS100_PERIOD} · SRI-KEHATI: {SRI_KEHATI_PERIOD}</p>
-        <p className="mt-1 text-xs text-zinc-500">Harga diperbarui per menit; rasio fundamental berasal dari laporan terbaru dan dicache selama satu jam.</p>
+        <h1 className="text-xl font-bold leading-tight sm:text-2xl">Stock Screener</h1>
+        <p className="small-muted mt-1 leading-relaxed">{stocks.length} saham unik dari KOMPAS100, SRI-KEHATI, LQ45, IDX30, dan JII, dengan filter 8 parameter fundamental</p>
+        <p className="mt-2 text-xs leading-relaxed text-zinc-500">LQ45: {LQ45_PERIOD} · IDX30: {IDX30_PERIOD} · JII: {JII_PERIOD}</p>
+        <p className="mt-1 text-xs leading-relaxed text-zinc-500">KOMPAS100: {KOMPAS100_PERIOD} · SRI-KEHATI: {SRI_KEHATI_PERIOD}</p>
+        <p className="mt-1 text-xs leading-relaxed text-zinc-500">Harga diperbarui per menit; rasio fundamental berasal dari laporan terbaru dan dicache selama satu jam.</p>
       </div>
 
       <Panel>
@@ -264,15 +264,17 @@ export default function ScreenerPage() {
             {sectors.map((sector) => <option key={sector} value={sector}>{sector}</option>)}
           </select>
         </div>
-        <div className="flex flex-wrap gap-2 mb-4">
+        <div className="-mx-4 mb-4 px-4 sm:mx-0 sm:px-0">
+          <div className="scrollbar-hidden flex gap-2 overflow-x-auto scroll-smooth pb-1 snap-x snap-mandatory sm:flex-wrap sm:overflow-visible">
           {indexOptions.map((idx) => {
             const count = idx === "Semua" ? stocks.length : stocks.filter((s) => (s.indices ?? []).includes(idx)).length;
             return (
-              <button key={idx} onClick={() => setSelectedIndex(idx)} className={`flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition ${selectedIndex === idx ? "bg-sky-600 text-white" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"}`}>
+              <button key={idx} onClick={() => setSelectedIndex(idx)} className={`flex shrink-0 snap-start items-center gap-1.5 rounded-full px-3.5 py-2.5 text-sm font-medium transition sm:rounded-md sm:py-2 ${selectedIndex === idx ? "bg-sky-600 text-white shadow-sm" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700 active:bg-zinc-700"}`}>
                 {idx} <span className="text-xs opacity-60">({count})</span>
               </button>
             );
           })}
+          </div>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <FilterInput label="P/E Range" min={filters.minPE} max={filters.maxPE} onMin={(v) => setFilters((f) => ({ ...f, minPE: v }))} onMax={(v) => setFilters((f) => ({ ...f, maxPE: v }))} />
@@ -289,18 +291,18 @@ export default function ScreenerPage() {
               const params = new URLSearchParams(window.location.search);
               params.delete("preset");
               window.history.replaceState({}, "", params.size ? `/screener?${params}` : "/screener");
-            }} className="rounded-md bg-zinc-700 px-4 py-2 text-sm text-white hover:bg-zinc-600">Reset</button>
+            }} className="min-h-[44px] rounded-xl bg-zinc-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-600 active:bg-zinc-600 sm:rounded-md sm:py-2">Reset</button>
           </div>
         </div>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-700 pt-4">
-          <p className="text-xs text-zinc-500">Backtest memakai maksimum 30 saham teratas dari hasil filter saat ini.</p>
+        <div className="mt-4 flex flex-col gap-3 border-t border-zinc-700 pt-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <p className="text-xs leading-relaxed text-zinc-500">Backtest memakai maksimum 30 saham teratas dari hasil filter saat ini.</p>
           <div className="flex items-center gap-2">
-            <select value={backtestYears} onChange={(event) => setBacktestYears(Number(event.target.value))} aria-label="Periode backtest" className="rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white">
+            <select value={backtestYears} onChange={(event) => setBacktestYears(Number(event.target.value))} aria-label="Periode backtest" className="min-h-[44px] rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white sm:min-h-0 sm:rounded-md">
               <option value={1}>1 tahun</option>
               <option value={3}>3 tahun</option>
               <option value={5}>5 tahun</option>
             </select>
-            <button type="button" onClick={runBacktest} disabled={backtestLoading || loadingFundamentals || filtered.length === 0} className="flex items-center gap-2 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-50">
+            <button type="button" onClick={runBacktest} disabled={backtestLoading || loadingFundamentals || filtered.length === 0} className="flex min-h-[44px] items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-0 sm:rounded-md sm:py-2">
               <Play size={15} /> {backtestLoading ? "Menghitung..." : "Jalankan Backtest"}
             </button>
           </div>
@@ -310,11 +312,13 @@ export default function ScreenerPage() {
       {backtestError && <div className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{backtestError}</div>}
       {backtest && <BacktestPanel data={backtest} />}
 
-      <Panel className="overflow-x-auto">
+      <Panel className="overflow-hidden">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-zinc-400">
           <span>Menampilkan {filtered.length} dari {stocks.length} saham{selectedIndex !== "Semua" ? ` di indeks ${selectedIndex}` : ""}</span>
-          <span>{loadingFundamentals ? "Memuat rasio fundamental real..." : "Fundamental dicache 1 jam"}</span>
+          <span className="hidden sm:inline">{loadingFundamentals ? "Memuat rasio fundamental real..." : "Fundamental dicache 1 jam"}</span>
         </div>
+        <div className="table-scroll-hint -mx-4 hidden sm:block sm:mx-0">
+          <div className="scrollbar-hidden -mx-4 overflow-x-auto overscroll-x-contain px-4 sm:mx-0 sm:px-0">
         <table className="w-full min-w-[1320px] text-sm">
           <thead>
             <tr className="border-b border-zinc-700 text-left text-zinc-400">
@@ -377,6 +381,50 @@ export default function ScreenerPage() {
             ))}
           </tbody>
         </table>
+          </div>
+        </div>
+        {/* Mobile cards - visible only on small screens */}
+        <div className="mt-4 grid gap-3 sm:hidden">
+          {filtered.slice(0, 30).map((s) => (
+            <Link key={`m-${s.ticker}`} href={`/analisis?ticker=${s.ticker}`} className="rounded-xl border border-zinc-700 bg-zinc-800/40 p-3 active:bg-zinc-800">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-white">{s.ticker}</span>
+                    <Badge tone={s.score >= 80 ? "positive" : s.score >= 60 ? "neutral" : "negative"}>{s.score}</Badge>
+                  </div>
+                  <div className="truncate text-xs text-zinc-400">{s.name}</div>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {(s.indices ?? []).slice(0, 2).map((idx) => <span key={idx} className="rounded bg-zinc-700/60 px-1.5 py-0.5 text-[10px] text-zinc-400">{idx}</span>)}
+                  </div>
+                </div>
+                <div className="shrink-0 text-right">
+                  <div className="text-sm font-semibold text-white">Rp {(s.price ?? 0).toLocaleString("id-ID")}</div>
+                  <div className="text-[11px] text-zinc-500">{s.dataQuality ? `${s.dataQuality.percentage}% lengkap` : ""}</div>
+                </div>
+              </div>
+              <div className="mt-3 grid grid-cols-4 gap-2 text-center">
+                <div className="rounded-lg bg-zinc-900/60 px-1 py-2">
+                  <div className="text-[10px] text-zinc-500">P/E</div>
+                  <div className="text-xs font-medium text-white">{formatMetric(s.pe, 1, "", s.unavailableMetrics?.includes("pe"))}</div>
+                </div>
+                <div className="rounded-lg bg-zinc-900/60 px-1 py-2">
+                  <div className="text-[10px] text-zinc-500">ROE</div>
+                  <div className="text-xs font-medium text-green-400">{formatMetric(s.roe, 1, "%", s.unavailableMetrics?.includes("roe"))}</div>
+                </div>
+                <div className="rounded-lg bg-zinc-900/60 px-1 py-2">
+                  <div className="text-[10px] text-zinc-500">DER</div>
+                  <div className="text-xs font-medium text-white">{formatMetric(s.der, 2, "", s.unavailableMetrics?.includes("der"))}</div>
+                </div>
+                <div className="rounded-lg bg-zinc-900/60 px-1 py-2">
+                  <div className="text-[10px] text-zinc-500">Div</div>
+                  <div className="text-xs font-medium text-sky-400">{formatMetric(s.dividendYield, 1, "%")}</div>
+                </div>
+              </div>
+            </Link>
+          ))}
+          {filtered.length > 30 && <div className="py-2 text-center text-xs text-zinc-500">Menampilkan 30 dari {filtered.length} — gunakan filter untuk mempersempit</div>}
+        </div>
         {filtered.length === 0 && <div className="py-8 text-center text-zinc-400">Tidak ada saham yang cocok</div>}
       </Panel>
     </div>
@@ -449,13 +497,13 @@ function formatMetric(value: number | undefined, digits: number, suffix = "", un
 function FilterInput({ label, value, onChange, min, max, onMin, onMax }: { label: string; value?: number; onChange?: (v: number) => void; min?: number; max?: number; onMin?: (v: number) => void; onMax?: (v: number) => void }) {
   return (
     <div>
-      <label className="small-muted block mb-1">{label}</label>
+      <label className="small-muted mb-1 block text-xs sm:text-[13px]">{label}</label>
       {onChange ? (
-        <input type="number" value={value} onChange={(e) => onChange(Number(e.target.value))} className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-white outline-none focus:border-sky-500" />
+        <input type="number" inputMode="decimal" value={value} onChange={(e) => onChange(Number(e.target.value))} className="min-h-[44px] w-full rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white outline-none focus:border-sky-500 sm:min-h-0 sm:rounded-md sm:py-2" />
       ) : (
         <div className="flex gap-2">
-          <input type="number" value={min} onChange={(e) => onMin?.(Number(e.target.value))} placeholder="Min" className="w-1/2 rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-white outline-none focus:border-sky-500" />
-          <input type="number" value={max} onChange={(e) => onMax?.(Number(e.target.value))} placeholder="Max" className="w-1/2 rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-white outline-none focus:border-sky-500" />
+          <input type="number" inputMode="decimal" value={min} onChange={(e) => onMin?.(Number(e.target.value))} placeholder="Min" className="min-h-[44px] w-1/2 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white outline-none focus:border-sky-500 sm:min-h-0 sm:rounded-md sm:py-2" />
+          <input type="number" inputMode="decimal" value={max} onChange={(e) => onMax?.(Number(e.target.value))} placeholder="Max" className="min-h-[44px] w-1/2 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white outline-none focus:border-sky-500 sm:min-h-0 sm:rounded-md sm:py-2" />
         </div>
       )}
     </div>

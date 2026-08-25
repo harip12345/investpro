@@ -151,42 +151,42 @@ export default function PortfolioPage() {
   const totalGain = totalCost > 0 ? ((totalValue - totalCost) / totalCost) * 100 : 0;
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Portfolio & Watchlist</h1>
-          <p className="small-muted mt-1">Kelola investasi, catat transaksi, pantau P/L harian</p>
+    <div className="flex flex-col gap-6 sm:gap-8">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold leading-tight sm:text-2xl">Portfolio & Watchlist</h1>
+          <p className="small-muted mt-1 leading-relaxed">Kelola investasi, catat transaksi, pantau P/L harian</p>
         </div>
-        <button onClick={() => setShowAdd(!showAdd)} className="flex items-center gap-2 rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500">
+        <button onClick={() => setShowAdd(!showAdd)} className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-sky-500 active:bg-sky-700 sm:w-auto sm:rounded-md sm:py-2">
           <PlusCircle size={16} /> Tambah Transaksi
         </button>
       </div>
 
       {showAdd && (
-        <Panel className="grid gap-3 sm:grid-cols-5">
+        <Panel className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <div>
-            <label className="small-muted mb-1 block">Saham</label>
-            <select value={form.ticker} onChange={(e) => setForm({ ...form, ticker: e.target.value })} className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-2 text-white outline-none">
+            <label className="small-muted mb-1 block text-xs sm:text-[13px]">Saham</label>
+            <select value={form.ticker} onChange={(e) => setForm({ ...form, ticker: e.target.value })} className="min-h-[44px] w-full rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white outline-none sm:min-h-0 sm:rounded-md sm:px-2 sm:py-2">
               {(livePrices.length ? livePrices : defaultPortfolio).map((stock) => <option key={stock.ticker} value={stock.ticker}>{stock.ticker}</option>)}
             </select>
           </div>
           <div>
-            <label className="small-muted mb-1 block">Aksi</label>
-            <select value={form.action} onChange={(e) => setForm({ ...form, action: e.target.value as "buy" | "sell" })} className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-2 text-white outline-none">
+            <label className="small-muted mb-1 block text-xs sm:text-[13px]">Aksi</label>
+            <select value={form.action} onChange={(e) => setForm({ ...form, action: e.target.value as "buy" | "sell" })} className="min-h-[44px] w-full rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white outline-none sm:min-h-0 sm:rounded-md sm:px-2 sm:py-2">
               <option value="buy">Beli</option>
               <option value="sell">Jual</option>
             </select>
           </div>
           <div>
-            <label className="small-muted mb-1 block">Jumlah</label>
-            <input type="number" value={form.quantity || ""} onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })} placeholder="Lot / lembar" className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-2 text-white outline-none focus:border-sky-500" />
+            <label className="small-muted mb-1 block text-xs sm:text-[13px]">Jumlah</label>
+            <input type="number" inputMode="numeric" value={form.quantity || ""} onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })} placeholder="Lot / lembar" className="min-h-[44px] w-full rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white outline-none focus:border-sky-500 sm:min-h-0 sm:rounded-md sm:px-2 sm:py-2" />
           </div>
           <div>
-            <label className="small-muted mb-1 block">Harga Beli/Jual</label>
-            <input type="number" value={form.price || ""} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} placeholder="Rp" className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-2 text-white outline-none focus:border-sky-500" />
+            <label className="small-muted mb-1 block text-xs sm:text-[13px]">Harga Beli/Jual</label>
+            <input type="number" inputMode="numeric" value={form.price || ""} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} placeholder="Rp" className="min-h-[44px] w-full rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white outline-none focus:border-sky-500 sm:min-h-0 sm:rounded-md sm:px-2 sm:py-2" />
           </div>
           <div className="flex items-end">
-            <button onClick={addTransaction} className="w-full rounded bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-500">Simpan</button>
+            <button onClick={addTransaction} className="min-h-[44px] w-full rounded-xl bg-green-600 px-3 py-2.5 text-sm font-medium text-white hover:bg-green-500 active:bg-green-700 sm:min-h-0 sm:rounded-md sm:py-2">Simpan</button>
           </div>
         </Panel>
       )}
