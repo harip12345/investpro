@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getArjumHistory } from "@/lib/arjum";
 
 export const dynamic = "force-dynamic";
 
@@ -199,6 +200,36 @@ async function getChartHistory(symbol: string, range: string = "6mo", interval: 
   }
 }
 
+async function getArjumChartHistory(symbol: string, range: string): Promise<ChartPoint[] | null> {
+  try {
+    const ticker = symbol.replace(/\.JK$/, "");
+    const points = await getArjumHistory(ticker);
+    if (!points) return null;
+    const n = (() => {
+      if (range === "1mo") return 21;
+      if (range === "3mo") return 63;
+      if (range === "6mo") return 126;
+      if (range === "1y") return 252;
+      if (range === "2y") return 504;
+      if (range === "5y") return 1260;
+      return 100;
+    })();
+    const mapped: ChartPoint[] = points.slice(-n).map((point) => ({
+      timestamp: point.timestamp,
+      open: point.open,
+      high: point.high,
+      low: point.low,
+      close: point.close,
+      volume: point.volume
+    }));
+    const filtered = mapped.filter((point) => point.close > 0);
+    if (filtered.length < 20) return null;
+    return addIndicators(filtered);
+  } catch {
+    return null;
+  }
+}
+
 function getFallbackHistory(symbol: string, range: string): ChartPoint[] | null {
   const n = (() => {
     if (range === "1mo") return 21;
@@ -251,6 +282,14 @@ export async function GET(request: Request) {
 
   let history = await getChartHistory(symbol, range);
   let source = "yahoo-chart";
+
+  if (!history) {
+    const arjumHistory = await getArjumChartHistory(symbol, range);
+    if (arjumHistory) {
+      history = arjumHistory;
+      source = "arjum-history";
+    }
+  }
 
   if (!history) {
     const result = getFallbackHistory(symbol, range);

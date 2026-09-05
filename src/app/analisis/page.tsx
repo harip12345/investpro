@@ -71,13 +71,38 @@ interface CagrResultMap {
   eps3y: CagrPoint; eps5y: CagrPoint;
 }
 
+interface BrokerNetRow {
+  broker: string;
+  netValueT: number;
+  buyValueT: number;
+  sellValueT: number;
+}
+
 interface Bandarology {
   dataStatus: "real" | "unavailable";
+  source?: string;
+  sourceLabel?: string;
+  isRealBrokerData?: boolean;
   score: number;
   phase: string;
   signal: string;
   asOf: string | null;
   metrics: { cmf20: number; buyPressure: number; volumeRatio: number; momentum20: number };
+  brokerSummary?: {
+    totalBuyValueT: number;
+    totalSellValueT: number;
+    netValueT: number;
+    brokerCount: number;
+    periodFrom: string | null;
+    periodTo: string | null;
+  } | null;
+  brokers?: { buyers: BrokerNetRow[]; sellers: BrokerNetRow[] } | null;
+  foreignFlow?: {
+    netValueT: number;
+    direction: "inflow" | "outflow";
+    periodFrom: string | null;
+    periodTo: string | null;
+  } | null;
   methodology: string;
 }
 
@@ -481,19 +506,27 @@ function SourceStrip({ stock }: { stock: Stock }) {
 }
 
 function BandarologyView({ data }: { data: Bandarology | null }) {
-  if (!data) return <div className="py-12 text-center text-sm text-zinc-400">Memuat analisis harga-volume...</div>;
+  if (!data) return <div className="py-12 text-center text-sm text-zinc-400">Memuat analisis bandarologi...</div>;
   if (data.dataStatus === "unavailable") {
-    return <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">Data harga-volume belum memadai untuk analisis Bandarologi.</div>;
+    return <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">Data bandarologi belum memadai (ketiga sumber tidak merespons). Coba lagi nanti atau cek /api/sources/health.</div>;
   }
   const tone = data.score >= 60 ? "text-green-400" : data.score <= 40 ? "text-red-400" : "text-amber-400";
-  const metrics = [
-    { label: "CMF 20 hari", value: data.metrics.cmf20.toFixed(3), desc: "Aliran dana berbobot volume" },
-    { label: "Tekanan beli", value: `${data.metrics.buyPressure.toFixed(1)}%`, desc: "Porsi volume pada hari naik" },
-    { label: "Rasio volume", value: `${data.metrics.volumeRatio.toFixed(2)}x`, desc: "Rata-rata 5 hari vs 15 hari" },
-    { label: "Momentum 20 hari", value: `${data.metrics.momentum20 >= 0 ? "+" : ""}${data.metrics.momentum20.toFixed(2)}%`, desc: "Perubahan harga penutupan" }
-  ];
+  const isReal = Boolean(data.isRealBrokerData);
+  const metrics = isReal
+    ? [
+      { label: "Net Rasio Broker", value: data.metrics.cmf20.toFixed(3), desc: "Net buy/sell ÷ total nilai" },
+      { label: "Tekanan beli", value: `${data.metrics.buyPressure.toFixed(1)}%`, desc: "Porsi nilai beli broker" },
+      { label: "Net Broker (Rp T)", value: `${data.brokerSummary && data.brokerSummary.netValueT >= 0 ? "+" : ""}${(data.brokerSummary?.netValueT ?? 0).toFixed(2)}`, desc: `${data.brokerSummary?.brokerCount ?? 0} broker teragregasi` },
+      { label: "Tilt Asing", value: data.foreignFlow ? `${data.foreignFlow.netValueT >= 0 ? "+" : ""}${data.foreignFlow.netValueT.toFixed(2)} T` : "-", desc: data.foreignFlow ? (data.foreignFlow.direction === "inflow" ? "Foreign inflow" : "Foreign outflow") : "Hanya di Index Alpha" }
+    ]
+    : [
+      { label: "CMF 20 hari", value: data.metrics.cmf20.toFixed(3), desc: "Aliran dana berbobot volume" },
+      { label: "Tekanan beli", value: `${data.metrics.buyPressure.toFixed(1)}%`, desc: "Porsi volume pada hari naik" },
+      { label: "Rasio volume", value: `${data.metrics.volumeRatio.toFixed(2)}x`, desc: "Rata-rata 5 hari vs 15 hari" },
+      { label: "Momentum 20 hari", value: `${data.metrics.momentum20 >= 0 ? "+" : ""}${data.metrics.momentum20.toFixed(2)}%`, desc: "Perubahan harga penutupan" }
+    ];
   return (
-    <div className="flex min-w-0 max-w-full flex-col gap-5">
+    <div className="flex min-w-0 max-w-full flex-col gap-4 sm:gap-5">
       <div className="grid gap-4 sm:grid-cols-[180px_1fr]">
         <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-3 sm:p-4 text-center">
           <Activity className="mx-auto text-sky-400" size={22} />
@@ -502,20 +535,54 @@ function BandarologyView({ data }: { data: Bandarology | null }) {
           <div className={`mt-2 font-semibold ${tone}`}>{data.phase}</div>
         </div>
         <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-3 sm:p-4">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <DataStatus status="real" />
+            {data.sourceLabel && <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] font-medium text-sky-300 sm:text-[11px]">{data.sourceLabel}</span>}
             {data.asOf && <span className="text-xs text-zinc-500">{new Date(data.asOf).toLocaleDateString("id-ID")}</span>}
           </div>
           <h3 className="mt-3 text-lg font-semibold text-white">{data.signal}</h3>
           <p className="mt-2 text-sm leading-relaxed text-zinc-400">{data.methodology}</p>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
         {metrics.map((metric) => <MetricBox key={metric.label} label={metric.label} value={metric.value} desc={metric.desc} />)}
       </div>
+      {isReal && data.brokers && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-3 sm:p-4">
+            <h4 className="text-sm font-semibold text-green-300">Top Akumulasi (Net Buy)</h4>
+            <div className="mt-2 flex flex-col gap-1.5">
+              {(data.brokers.buyers.length ? data.brokers.buyers : [{ broker: "-", netValueT: 0, buyValueT: 0, sellValueT: 0 }]).map((row) => (
+                <div key={`b-${row.broker}`} className="flex items-center justify-between gap-2 rounded bg-zinc-900/50 px-2.5 py-1.5 text-xs">
+                  <span className="font-bold text-white">{row.broker}</span>
+                  <span className="text-green-400">+{row.netValueT.toFixed(2)} T</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-md border border-zinc-700 bg-zinc-800/40 p-3 sm:p-4">
+            <h4 className="text-sm font-semibold text-red-300">Top Distribusi (Net Sell)</h4>
+            <div className="mt-2 flex flex-col gap-1.5">
+              {(data.brokers.sellers.length ? data.brokers.sellers : [{ broker: "-", netValueT: 0, buyValueT: 0, sellValueT: 0 }]).map((row) => (
+                <div key={`s-${row.broker}`} className="flex items-center justify-between gap-2 rounded bg-zinc-900/50 px-2.5 py-1.5 text-xs">
+                  <span className="font-bold text-white">{row.broker}</span>
+                  <span className="text-red-400">{row.netValueT.toFixed(2)} T</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+      {isReal && data.brokerSummary?.periodFrom && (
+        <p className="text-[11px] leading-relaxed text-zinc-500">
+          Periode broker {data.brokerSummary.periodFrom} s/d {data.brokerSummary.periodTo ?? data.brokerSummary.periodFrom} · Total beli Rp{data.brokerSummary.totalBuyValueT.toFixed(2)} T · Total jual Rp{data.brokerSummary.totalSellValueT.toFixed(2)} T
+        </p>
+      )}
       <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-200">
         <Info size={16} className="mt-0.5 shrink-0" />
-        Ini adalah proxy kuantitatif, bukan broker summary. Ia tidak mengidentifikasi bandar, broker, atau beneficial owner dan tidak boleh dipakai sebagai sinyal beli/jual tunggal.
+        {isReal
+          ? "Data broker summary real per kode broker. Tetap bukan rekomendasi beli/jual — bandar dapat berpindah posisi dengan cepat."
+          : "Ini adalah proxy kuantitatif, bukan broker summary. Ia tidak mengidentifikasi bandar, broker, atau beneficial owner dan tidak boleh dipakai sebagai sinyal beli/jual tunggal. Tambahkan INDEXALPHA_API_KEY untuk data broker real."}
       </div>
     </div>
   );
